@@ -331,11 +331,11 @@ void Aero_Computations( float dt, int init )
 	float Cnb 	= CN_b;		// Yaw, sideslip moment, yaw stability
 	float Cnp 	= CN_p;		// Yaw, roll-rate moment, rikk-yaw coupling 
 	float Cnr 	= CN_r;		// Yaw, yaw-rate moment, yaw damping
-	float Cndr 	= CN_dr;		// Yaw, rudder deflection moment, rudder effectiveness
-	float Cnda 	= CN_da;	 // Yaw, aileron defection moment, aileron inducted yaw 	
+	float Cndr 	= CN_dr;	// Yaw, rudder deflection moment, rudder effectiveness
+	float Cnda 	= CN_da;	// Yaw, aileron defection moment, aileron inducted yaw 	
 
 //=======================================================================================================================
-// Moments - rotation
+// Momenets and rotation
 
 		// X axis
 		Lm = qSb * ( ( Clo ) + ( Clda * delta_a ) + ( Clp*Wp*_B/(2.0*Vinf)) + ( Clr*Wr*_B/(2.0*Vinf)));
@@ -355,16 +355,16 @@ void Aero_Computations( float dt, int init )
 //=======================================================================================================================	
 // Forces - linear
 	
-	Weight = WEIGHT;	 
- 	float CLo 	= CL_0;
- 	float CLa 	= CL_ALPHA; 	 	
- 	float CDo 	= CD_0;
-	float CL, Cd, Cy;
+		Weight = WEIGHT;	 
+		float CLo 	= CL_0;
+		float CLa 	= CL_ALPHA; 	 	
+		float CDo 	= CD_0;
+		float CL, Cd, Cy;
 
-	float Cyb	= CY_B;
-	float Cydr	= CY_DELTA_R;
-	float Cyp	= CY_p;
-	float Cyr 	= CY_r;
+		float Cyb	= CY_B;
+		float Cydr	= CY_DELTA_R;
+		float Cyp	= CY_p;
+		float Cyr 	= CY_r;
 
 		CL = ( CLo + ( CLa * Alpha ));
 		Cd = ( CDo + ( K*CL*CL ));
@@ -400,37 +400,7 @@ void Aero_Computations( float dt, int init )
 		W.y = Wq;
 		W.z = Wr;
 
-		#if 1
 		int QTRN_SW = 0;
-
-#if 0
-		if( QTRN_SW )
-		{
-
-	 		Quaternion newOrientation
-	 		( 
-				OrientationQuat.x +( OrientationQuat.w * Wp + OrientationQuat.y * Wr - OrientationQuat.z * Wq ) * 0.5f * dt,
-				OrientationQuat.y +( OrientationQuat.w * Wq + OrientationQuat.z * Wp - OrientationQuat.x * Wr ) * 0.5f * dt,
-				OrientationQuat.z +( OrientationQuat.w * Wr + OrientationQuat.x * Wq - OrientationQuat.y * Wp ) * 0.5f * dt,
-				OrientationQuat.w -( OrientationQuat.x * Wp + OrientationQuat.y * Wq + OrientationQuat.z * Wr ) * 0.5f * dt
-			);
-
-	 		newOrientation.Normalize( );
- 
-	 		OrientationQuat = newOrientation;
- 
-	 		Vector3 ypr = OrientationQuat_ToEulerAngles( );
-
-	 		Roll 	= ypr.x;
-	 		Pitch 	= ypr.y;
-	 		Yaw 	= ypr.z;
-
-	 		Qtrn_Orient_Disp.x = OrientationQuat.x;
-	 		Qtrn_Orient_Disp.y = OrientationQuat.y;
-	 		Qtrn_Orient_Disp.z = OrientationQuat.z;
-	 		Qtrn_Orient_Disp.w = OrientationQuat.w;
-		}
-#endif
 
 		if( QTRN_SW )
 		{
@@ -502,29 +472,10 @@ void Aero_Computations( float dt, int init )
 	
 	}
 
-#endif
 
-#if 0
-	{
- 		Weight = MASS*G;
-
- 		printf( "\033[7F" );    //  controls cursor on terminal for non scrolling and back up 7 lines.
- 		
- 		printf( "10]-------------------------------------------------------------------------------------------------------------------------------------\n" );
- 		printf( "| Time s | Vinf Ang | Vin | Alt | Elv Ang | Cm | q | Pitch-Pitch | | | \n" );
- 		printf( "| %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %9.3f | | |\n", 
- 		time, flight_path_angle, Vinf, altitude, delta_e * RADtoDEG , CM_DELTA_E * delta_e * RADtoDEG, q * RADtoDEG, Pitch * RADtoDEG ); 
- 		printf( "-------------------------------------------------------------------------------------------------------------------------------------\n" );
-		printf( "| Time s | Vu | Vw | Pitch | Vif | Alpha | Weight | Lift | Drag | Thrust | Thrtl_Set | \n" );
- 		printf( "| %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %9.2f | %9.2f | %9.2f | %3.2f |\n", time, Vu, Vw, pitch_d, Vinf, Alpha * RADtoDEG, Weight, lift, drag, thrust, Thrtl_Set );
- 		printf( "11]-------------------------------------------------------------------------------------------------------------------------------------\n" );
-
-	} 
-#endif
 
 //=================================================================================================================
 // PFD Interface 
-
  		Aero.Pitch_d 	= Pitch * RADtoDEG;
  		Aero.Roll_d 	= Roll 	* RADtoDEG;
  		Aero.Yaw_d 		= Yaw 	* RADtoDEG; 
@@ -540,12 +491,10 @@ void Aero_Computations( float dt, int init )
 			Aero.Altitude_AGL_feet = Altitude_ft; 
 			Aero.AirSpeed_knots = Vu * 0.592; // ft/sec = 0.592 knots. 
 		}
-		else printf( "12]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Units Not defined \n <<<<<<<<<<<<<<<<<<<<<<<<< " );	
-
-// End - PFD Int_erface 
+		else
+			printf( "12]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Units Not defined \n <<<<<<<<<<<<<<<<<<<<<<<<< " );	
+// End - PFD Interface 
 //=================================================================================================================
-
-
 }
 // End of Calc Aero routine
 //========================================================================================================================
