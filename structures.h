@@ -1,5 +1,7 @@
 
 
+typedef unsigned int uint;
+typedef bool 		 bit;
 
 struct _UDP
 {
@@ -22,8 +24,8 @@ struct _Cntrls
   float y_cmd;
   float z_cmd;
     
-  int 	Cursor_has_Stick;
-  int 	Button_Down;
+  uint 	Cursor_has_Stick;
+  uint 	Button_Down;
   
   int 	MouseStartY;
   int 	MouseStartX;
@@ -32,13 +34,13 @@ struct _Cntrls
   int 	MouseY;
   int   MouseZ;
   
-  int 	Stick_Enable;
+  uint 	Stick_Enable;
 
-  int	Pitch_impulse;
+  bit	Pitch_impulse;
   float Pitch_Cmd;
   float angle_alpha;
-  int	abort;
-  int   key;
+  bit	abort;
+  bit   key;
   
   float Throttle_Cmd; // throttle 				[  0, +1 ].
   float Elevator_Cmd; // elevator deflection 	[ -1, +1 ].
@@ -147,8 +149,26 @@ struct _Frame
    float  Frame_Time;
    float  delta_time;
    float  Frames_per_second; 
-   int    Flag;
+   bit    Flag;
 };
+
+struct _TM_Param
+{
+	float Alpha;
+	float Beta;
+	float Mach;
+	float CL;
+	float CL2;
+	float Time;
+	uint  frame_cnt;
+
+};
+
+
+
+
+
+#if 0
 
 /*
 struct                
@@ -175,7 +195,7 @@ struct
 }Aircraft;
 */
 
-#if 0
+
 struct
 {
   int Field_Elevation_feet;

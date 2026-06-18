@@ -280,6 +280,7 @@ void GLUT_Loop_1( )
 	glutSwapBuffers();
 	if( Cntrls.abort ) 
 	{
+		printf("\n\n\n\n");
 	    printf("\n<<<<<  ABORT 1 >>>>>\n");
 		glutLeaveMainLoop();
 	}	
@@ -310,6 +311,7 @@ void GLUT_Loop_3( )
 	{
 		printf("\n<<<<<  ABORT 3 >>>>>\n");
 		glutLeaveMainLoop();
+		printf("=====================================================================================================================\n");
 	}
 }
 

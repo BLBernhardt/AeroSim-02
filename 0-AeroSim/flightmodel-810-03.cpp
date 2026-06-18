@@ -14,9 +14,21 @@
 //#include "../Math_define.h"
 #include "../structures.h"
 
-extern struct _Cntrls Cntrls;
-extern struct _Aerodyn Aero;
-extern struct _TEST test;
+extern struct _Cntrls 		Cntrls;
+extern struct _Aerodyn 		Aero;
+extern struct _TEST 		test;
+extern struct _TM_Param		TMParam;
+
+
+
+#include "../0-AeroModel/aero_model.h"
+#include "../0-AeroModel/coeff_table.h"
+
+extern AeroModel* aero;     // ← Must be here
+
+void Aero_Computations( float, int,  const AeroModel* aero  );
+
+
 
 //=======================================================
 //using namespace FCSim;
@@ -153,7 +165,7 @@ extern Quaternion4d Qtrn_Orient_Disp;
 
 
 //void FlightModel::Aero_Computations( float dt, int init )
-void Aero_Computations( float dt, int init )
+void Aero_Computations( float dt, int init, const AeroModel* aero )
 {
 
 	if( dt > 1.0f ) return;
@@ -227,6 +239,8 @@ void Aero_Computations( float dt, int init )
 			printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Units Not defined \n <<<<<<<<<<<<<<<<<<<<<<<<< ");	
 		}
 		
+		if( !(aero && aero->tables_loaded)) printf("ERROR >>> Tables not loaded \n");
+		
 		time = -1.0;
  	
  		Weight 				= WEIGHT;	 // Weight lbs : mass (lbs/G slugs )
@@ -247,6 +261,9 @@ void Aero_Computations( float dt, int init )
 		Vinf_Sq					= 0.0;
 	
 	}
+
+
+
 
 
 //================== End Init ================================================================================================
@@ -366,7 +383,29 @@ void Aero_Computations( float dt, int init )
 	float Cyp	= CY_p;
 	float Cyr 	= CY_r;
 
+
+
+//==============================
 		CL = ( CLo + ( CLa * Alpha ));
+		
+		
+		
+    double Alpha_tst = 5.1;/* your current angle of attack in degrees */;
+    double Mach  = 0.5;/* current mach number */;
+
+    double CL2   = 0.0;
+    
+    	CL2 = CoeffTable1D_Interpolate(&aero->CL_alpha, Alpha * RADtoDEG);
+    
+
+
+    
+		TMParam.Alpha 	= Alpha;
+		TMParam.CL 		= CL;
+		TMParam.CL2		= CL2;
+
+//==============================
+
 		Cd = ( CDo + ( K*CL*CL ));
 		
 		Lift = qS * CL;

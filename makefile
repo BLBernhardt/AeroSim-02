@@ -15,6 +15,8 @@ OBJS   =	0-Math/Vector.o \
 			0-Math/Matrix.o \
 			0-Math/Quaternion.o \
             0-AeroSim/flightmodel-810-03.o \
+            0-AeroModel/aero_model.o \
+            0-AeroModel/coeff_table.o \
 			0-Graphics/axis.o \
 			0-Graphics/0-PFD/PFD_Exec.o \
 			0-Graphics/0-PFD/PFD_Heading.o \
@@ -30,6 +32,7 @@ OBJS   =	0-Math/Vector.o \
 			0-Graphics/0-PFD/Flight_Stick.o \
 			0-Graphics/HSI_Map.o \
 			0-Graphics/main_graphics.o \
+			0-Telemetry/TM_Print.o \
 			main.o 
 
 TARGET= a

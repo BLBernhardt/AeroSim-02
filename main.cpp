@@ -20,16 +20,33 @@
 
 
 
+#include "0-AeroModel/aero_model.h"
+#include "0-AeroModel/coeff_table.h"
+
+AeroModel* aero = NULL;
+
+
+
+void Aero_Computations( float, int,  const AeroModel* aero  );
+
+
 //using namespace FCSim;
 //using namespace RCSim::DataClasses;
 //FCSim::FlightModel flightmodel;
 
-struct _Cntrls   Cntrls;
-struct _Aerodyn  Aero;
-struct _Frame    Frame;
-struct _Display  Display;
-struct _Discrete Disc;
-struct _TEST     test;
+
+struct _Cntrls   	Cntrls;
+struct _Aerodyn  	Aero;
+struct _Frame    	Frame;
+struct _Display  	Display;
+struct _Discrete 	Disc;
+struct _TEST     	test;
+struct _TM_Param	TMParam;
+
+
+
+
+ void TM_Print( void );
 
 //===== Glut ====================================
 
@@ -67,7 +84,7 @@ struct _TEST     test;
  Vector3d position;
  Vector3d attitude;
  
-void Aero_Computations( float, int  );
+
 
 Vector3d getAttitude();
 Vector3d getPosition();
@@ -76,14 +93,14 @@ Vector3d getPosition();
 
  GLUquadricObj	*quadric;
 
- Vector3d     	downwards;
- Vector3d     	vehicle_position;
+ Vector3d     downwards;
+ Vector3d     vehicle_position;
 
- Quaternion4d 	vehicle_orientation_q;
+ Quaternion4d vehicle_orientation_q;
 
- Quaternion4d 	q_new; // radian
- Quaternion4d 	q_old; // radian
- Quaternion4d 	q_dlt; // radian
+ Quaternion4d q_new; // radian
+ Quaternion4d q_old; // radian
+ Quaternion4d q_dlt; // radian
  Vector3d_rate  angl_new; // deg   
  Vector3d_rate  angl_old; // deg
  Vector3d_rate  angl_dlt; // deg  
@@ -94,24 +111,28 @@ Vector3d getPosition();
  Vector3d vector_scale( float, Vector3d  );
  Vector3d vector_add( Vector3d, Vector3d  );
  Vector3d vector_cross_product( Vector3d, Vector3d ); 
- Vector3d vector_normalize( Vector3d ); 
  Vector3d quaternion_rotate_vector( Quaternion4d , Vector3d  );
+ Vector3d vector_normalize( Vector3d ); 
+ 
  Quaternion4d Quat_to_Axis( Quaternion4d );
+
  Quaternion4d make_rotation_quaternion_from_axis_and_angle( Vector3d, float );
  Quaternion4d quaternion_multiply( Quaternion4d a, Quaternion4d b );
  Quaternion4d quaternion_normalize( Quaternion4d );
  Quaternion4d euler_to_quaternion( double, double, double );
- //Quaternion4d euler_to_quaternion( double, double, double );
- //Quaternion4d multiply_quaternions( Quaternion4d, Quaternion4d ); 
+ Quaternion4d euler_to_quaternion( double, double, double );
+ Quaternion4d multiply_quaternions( Quaternion4d, Quaternion4d ); 
  void quaternion_to_euler( Quaternion4d, double*, double*, double* );
 
  void  stroke_output(GLfloat, GLfloat, GLfloat, const char* );
+
 
 //=======================================================================================
 //
 //      Write alphanumeric characters to graphics
 //
 //=======================================================================================
+
 
 void  stroke_output(GLfloat x, GLfloat y, GLfloat size, const char *text )
 {
@@ -124,6 +145,7 @@ void  stroke_output(GLfloat x, GLfloat y, GLfloat size, const char *text )
     glutStrokeCharacter(GLUT_STROKE_ROMAN, *p);
   glPopMatrix();
 }
+
 
 //=======================================================================================
 //
@@ -163,6 +185,7 @@ void Timer_Initialization()  	// Function to initialize the timer and set up the
 //      Frame Executive 
 //=======================================================================================
 
+
 void Process_Timing()
 {
     static int count_1  = 0;
@@ -174,30 +197,28 @@ void Process_Timing()
     int RUN = 0;
     
     //  glut_idle_process ( Process_Timming )  executes free wheel at 1 meg per second or more.  
-    if( interrupt_flag == 1 )  // Timer Interupt set for 1000 interupts per second. See Timer Initialization
+//    if( interrupt_flag == 1 )  // Timer Interupt set for 1000 interupts per second. See Timer Initialization
     {
     	interrupt_flag = 0;
     	count_1++;
      	count_200++;   	
      	count_50++;   	
     	
-    	if( count_1  > 1000 )  //  1.0 FPS 
-    	{ 
-    		count_1 = 0;
-    		
-    		//printf(" Frame 1 FPS \n" );
-		}
+
     	if( count_200 > 10 )  //  100 FPS 
     	{ 
      		count_200 = 0;   	
+    		TMParam.frame_cnt++;
+    	
     	
     	    current_time = glutGet( GLUT_ELAPSED_TIME  )/1000.0;
     		dt = current_time - previous_time;
     	
   			Realtime_Calcs( dt );
 //  			flightmodel.Aero_Computations( dt, RUN );
-			Aero_Computations( dt, RUN );
+			Aero_Computations( dt, RUN,  aero );
   			//flightmodel.MoveScene( dt );   
+  			TM_Print();
   			
   			previous_time = current_time;
   			
@@ -217,6 +238,12 @@ void Process_Timing()
     		
     		//printf(" Frame 50 FPS \n" );
 		}		
+		
+	
+		
+		
+		
+		
 	}
 }
 
@@ -284,7 +311,7 @@ void Realtime_Calcs( float dt )
 	//=== EDL Code =================================================
 	//  x is red    pitch
 	//  y is green  yaw
-	//  z is yellow roll 	
+	//  z is yellow roll 	   OpengGL coordinates do not match aircraft coordinates
 	
     x = ( Vector3d ){ 1, 0, 0 };
   	y = ( Vector3d ){ 0, 1, 0 };
@@ -307,6 +334,10 @@ void Realtime_Calcs( float dt )
 
 //		position = flightmodel.getPosition();
 //		attitude = flightmodel.getAttitude();
+
+
+
+
 		position = getPosition();
 		attitude = getAttitude();
     
@@ -320,6 +351,14 @@ void Realtime_Calcs( float dt )
       	Aero.Pitch_d = angl_new.p ;
       	Aero.Roll_d  = angl_new.r ;	
        	Aero.Yaw_d   = angl_new.y ;		
+       	
+       	
+       	
+       	
+       	
+       	
+       	
+       	
        	
        	if( 0 )   //=== Test Code
 		{
@@ -439,11 +478,12 @@ void keyboard( unsigned char key, int x, int y)
 		// Exit program
 	   	case 27:   //  ascii ESC  235 dec
 	  		Cntrls.abort = 1;	
- 
+	  		
+	  		printf("\n\n\n\n\n\n");
+            printf( "Exit Program\n" );  
             printf( "\033[0m" );   
             printf( "\033[?25h" ); 
             system( "stty sane" ); 
-            printf( "Exit Program\n" );    
 
 		// Course Alpha Adjust
 		case '1':  
@@ -616,12 +656,35 @@ void InitGlut()
   	
  // 	glutVisibilityFunc( visibility );
   
-  	glutIdleFunc( Process_Timing );
+  	glutIdleFunc( Process_Timing );   // Real time frames generated here - yes its confusing. Its GLUT
 
   	printf("\n");
 
 
 }
+
+
+
+
+int AeroModel_GlobalInit(void)
+{
+    static AeroModel aero_m = {0};
+
+    if (!AeroModel_Init(&aero_m)) 
+    {
+        printf("Failed to initialize AeroModel\n");
+        return 0;
+    }
+
+    aero = &aero_m;
+    AeroModel_PrintSummary(aero);
+    printf("AeroModel successfully initialized (global pointer ready).\n");
+    return 1;
+}
+
+
+
+
 
 //=======================================================================================++++++++++++++++++++++++++++++
 //      Glut Initilization 
@@ -629,34 +692,40 @@ void InitGlut()
 
 int main( int argc, char ** argv ) 
 {
+//==============================================================================================
+
+//   AeroModel aero = {0};
+	TMParam.frame_cnt = 0;
+
+	printf("=====================================================================================================================\n");
+    if( !AeroModel_GlobalInit() ){ return 1; }
+
+    double alpha = 5.1;
+    double CL = CoeffTable1D_Interpolate(&aero->CL_alpha, alpha);
+
+    printf("At Alpha = %.2f deg → CL = %.4f\n", alpha, CL);
+
+  
+
+  //  AeroModel_Destroy(&aero);
+
+//==============================================================================================
+
 	// Tim Init
 	float dt = 0.0;
     Timer_Initialization();
 
- 	// Sim Init
- 	// flightmodel.Load("El_Trainer.ini");
- 	
- 	//flightmodel.Load("test-001.ini");
- 	// flightmodel.Initialize();
 	int INIT = 1;
-  	//flightmodel.Aero_Computations( 0.0, INIT );
-  	Aero_Computations( 0.0, INIT );
+  	Aero_Computations( 0.0, INIT, aero );
 
-  	//position = flightmodel.getPosition();
-  	//position = getPosition();
-  	//printf("before loop pos(%6.3f, %6.3f, %6.3f)\n", position.x, position.y, position.z);
 
-//    currentTime  = dtime.now();
-//    previousTime = currentTime;	  
-
- 	// Glut Init   
   	glutInit( &argc, argv );
  	InitGlut();  
  	
     printf("Run Main Simulation Program ...  \n"); 	
     glutMainLoop( );
-
-  	return EXIT_SUCCESS;
+	printf("=====================================================================================================================\n");
+  	return 1;
 }
 
 
