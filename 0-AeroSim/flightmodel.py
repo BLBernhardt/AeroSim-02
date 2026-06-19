@@ -22,6 +22,9 @@ class Vec_xyz():
         self.y=y #< Right
         self.z=z #< Down
 
+    def copy(self):
+        return Vec_xyz(self.x, self.y, self.z)
+        
     def mag(self) -> float:
         return math.sqrt(self.x**2 +self.y**2 +self.z**2)
 
@@ -31,6 +34,9 @@ class Vec_pqr():
         self.q=q #< Pitch
         self.r=r #< Yaw
 
+    def copy(self):
+        return Vec_pqr(self.p, self.q, self.r)
+        
     def mag(self) -> float:
         return math.sqrt(self.p**2 +self.q**2 +self.r**2)
 
@@ -56,7 +62,10 @@ class Qtrn():
         self.x=x
         self.y=y
         self.z=z        
-     
+
+    def copy(self):
+        return Qtrn(self.w, self.x, self.y, self.z)
+        
     def mag(self) -> float:
         return math.sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
 
@@ -101,7 +110,7 @@ class Qtrn():
 
         ## Yaw( Z-axis rotation )
         siny_cosp = 2.0 * ( self.w * self.z + self.x * self.y )
-        cosy_cosp = 1.0 - 2.0 * ( self.y**2 + q.z**2 )
+        cosy_cosp = 1.0 - 2.0 * ( self.y**2 + self.z**2 )
         yaw = math.atan2( siny_cosp, cosy_cosp )
         return Vec_pqr(p=roll, q=pitch, r=yaw)
 
@@ -298,7 +307,8 @@ class AeroModel():
         self._q.multiply(d_q )
         self._q.normalize()
         Vi_inertial = rotate_body_to_inrtl( self.V, self._q ) ##< ???       
-        self.Attitude.roll_r, self.Attitude.pitch_r, self.attitude.yaw_r = self._q.getEuler()
+        R = self._q.getEuler()
+        self.attitude.roll_r, self.attitude.pitch_r, self.attitude.yaw_r = (R.p, R.q, R.r)
 
         ## 6DOF inertial solution       
         self.position.x += Vi_inertial.x * dt
@@ -345,7 +355,9 @@ def T_Body_to_Inrt_Vel( V_body, q ):
 def rotate_body_to_inrtl( body, q ):
     """Rotate body vector to inertial frame using quaternion"""
     p = Qtrn(w=0, x=body.x, y=body.y, z=body.z)
-    q.multiply( p ).multiply( q.conj() )
+    q = q.copy()
+    q_conj = q.conj()
+    q.multiply( p ).multiply( q_conj )
     return Vec_xyz(x=q.x, y=q.y, z=q.z)
  
 ## End - ChatGTP Quaternion Code
