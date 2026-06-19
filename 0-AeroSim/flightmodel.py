@@ -9,6 +9,7 @@ import NavionAircraftParameters as airMdl
 
 PI = math.pi
 RADtoDEG = 180/PI
+DEGtoRAD = PI/180
 
 def Sign( x ):
     if  x  < 0 :
@@ -33,7 +34,7 @@ class Vec_pqr():
     def mag(self) -> float:
         return math.sqrt(self.p**2 +self.q**2 +self.r**2)
 
-    def getQuat(self, dt ):
+    def getQuaternion(self, dt ):
         """  """
         mag = self.mag()
         if ( mag == 0.0 ):
@@ -57,7 +58,7 @@ class Qtrn():
         self.z=z        
      
     def mag(self) -> float:
-        return math.sqrt(self.w**2, self.x**2 +self.y**2 +self.z**2)
+        return math.sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
 
     def multiply( self, q2 ): 
         """Quaternion multiplication"""
@@ -114,40 +115,39 @@ class Attitude():
         self.pitch_r = pitch_r
         self.yaw_r   = yaw_r        
 
+class Controls():
+    def __init__(self, Elevator_Cmd, Aileron_Cmd, Rudder_Cmd, Throttle_Cmd):
+        self.Elevator_Cmd = Elevator_Cmd
+        self.Aileron_Cmd  = Aileron_Cmd
+        self.Rudder_Cmd   = Rudder_Cmd
+        self.Throttle_Cmd = Throttle_Cmd
+        
 class AeroModel():
     def __init__(self, dt, altInit_m, speed_fps, weight_lbs, units):
-        self.params = airMdl()
+        self.params = airMdl.NavionParams()
         self.dt = dt
         self.time = 0.0
 
-##===========================================================================================================
-## Quaternions
-#        self.position = Vec3() 
-        self.P = Vec_xyz() 
-        self.V = Vec_xyz() #< u, v, w  linear Velocity 
+        self.position = Vec_xyz(0.0, 0.0, altInit_m) 
+        #self.P = Vec_xyz(0.0, 0.0, altInit_m) 
+        self.V = Vec_xyz(speed_fps, 0.0, 0.0) #< u, v, w  linear Velocity 
         self.A = Vec_xyz() #< u, v, w  linear Acceleration   
         self.F = Vec_xyz() #< u, v, w  linear Force (forward, right, down )
 
-        self._q = Qtrn4f(1.0, 0.0, 0.0, 0.0) #< Initial orientation    
-        #self.attitude = Attitude()
-        self.Ar = Vec_pqr()   #< Roll (x), Pitch (y), Yaw (z) angular position
+        self._q = Qtrn(1.0, 0.0, 0.0, 0.0) #< Initial orientation    
+        self.attitude = Attitude()
+        #self.Ar = Vec_pqr()   #< Roll (x), Pitch (y), Yaw (z) angular position
         self.W = Vec_pqr() #< p, q, r (xyz) angular velocity
         self.W_dot = Vec_pqr() #< p_dot, q_dot, r_dot (xyz) angular accel
         self.L = Vec_pqr() #< L, M, N (xyz) angular moment
         self.T = Vec_pqr() #< L, M, N (xyz) Torque
     
-##===========================================================================================================
-
-        #self.Lm, self.Mm, self.Nm = (0.0, 0.0, 0.0) #< L, M, N (xyz) angular moment
-        #self.Ap, self.Aq, self.Ar = (0.0, 0.0, 0.0) #< p_dot, q_dot, r_dot (xyz) angular accel
-        #self.Pp, self.Pq, self.Pr = (0.0, 0.0, 0.0) #< Roll (x), Pitch (y), Yaw (z) angular position
-
         self.alpha_r = 0.0  #< Angle of attack 
         self.beta_r = 0.0   #< Sideslip angle 
         self.Lift, self.Drag = (0.0, 0.0)
-        self.Altitude_m  = altInit_m
+        #self.Altitude_m  = altInit_m
 
-        self.Wind = Vec3()        #< wind vector [m/s] 
+        self.Wind = Vec_xyz()        #< wind vector [m/s] 
 
         self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
         self.Thrust = 0.0 
@@ -157,7 +157,7 @@ class AeroModel():
         self.delta_e_trim = 0.0
 
         self.delta_a_deg = 0.0    #< Aileron deflection (degrees)
-        sself.delta_a = 0.0       #< Aileron deflection (radians)
+        self.delta_a = 0.0        #< Aileron deflection (radians)
 
         self.delta_r_deg = 0.0    #< Rudder deflection (degrees)
         self.delta_r = 0.0        #< Rudder deflection (radians)
@@ -169,7 +169,7 @@ class AeroModel():
        
 
     def step(self, ctrls, dt=None ):
-        dt = self.dt if dt==None else dy
+        dt = self.dt if dt==None else dt
         self.time += dt
         
         ##================ Controls ================================================================================================
@@ -188,67 +188,68 @@ class AeroModel():
 
         ##================== Airspeed, Alpha, Beta, Flight Path ======================================================================
         ## Update the airspeed 
-        if abs(self.X.x) < 1.0:
+        if abs(self.V.x) < 1.0:
             self.alpha_r = 0.0     #< No AOA and Sideslip at low speed
             self.beta_r  = 0.0
         else:
-            self.alpha_r = math.atan2(  self.V.z, self.X.x ) #< Trajactor vs air-speed vectors
+            self.alpha_r = math.atan2(  self.V.z, self.V.x ) #< Trajactor vs air-speed vectors
             self.beta_r  = math.atan2( -self.V.y, self.V.x ) #< Trajactor vs air-speed vectors
 
-        qS  = 0.5 * self.params.RHO * (self.params.Vinf**2) * self.params._S
+        Vabs = self.V.mag() #<math.sqrt(Vx**2 +Vy**2 +Vz**2)
+        qS  = 0.5 * self.params.RHO * (Vabs**2) * self.params._S
+        _B    = self.params._B
         qSc = qS * self.params._C
-        qSb = qS * self.params._B
+        qSb = qS * _B
         ##============================================================================================================================
         
-        Cmo   = self.parames.CM_0
-        Cmq   = self.parames.CM_Q 
-        Cmde  = self.parames.CM_DELTA_E
-        Cma   = self.parames.CM_ALPHA
+        Cmo   = self.params.CM_0
+        Cmq   = self.params.CM_Q 
+        Cmde  = self.params.CM_DELTA_E
+        Cma   = self.params.CM_ALPHA
         
-        Clo   = self.parames.Cl_0     #< Roll, Zero-control moment ( typically small or zero in symmetric flight )
-        Clda  = self.parames.Cl_DA    #< Roll, Aileron effectiveness 9 change in Cl per radian of aileron deflection )
-        Clp   = self.parames.Cl_P     #< Roll, Damping ( change in Cl per unit of roll rate ) 
-        Clr   = self.parames.Cl_R     #< Roll, Yaw-roll coupling ( change in Cl per unti of yaw rate. )
+        Clo   = self.params.Cl_0     #< Roll, Zero-control moment ( typically small or zero in symmetric flight )
+        Clda  = self.params.Cl_DA    #< Roll, Aileron effectiveness 9 change in Cl per radian of aileron deflection )
+        Clp   = self.params.Cl_P     #< Roll, Damping ( change in Cl per unit of roll rate ) 
+        Clr   = self.params.Cl_R     #< Roll, Yaw-roll coupling ( change in Cl per unti of yaw rate. )
         
         Cno   = 0.0;
-        Cnb   = self.parames.CN_b     #< Yaw, sideslip moment, yaw stability
-        Cnp   = self.parames.CN_p     #< Yaw, roll-rate moment, rikk-yaw coupling 
-        Cnr   = self.parames.CN_r     #< Yaw, yaw-rate moment, yaw damping
-        Cndr  = self.parames.CN_dr    #< Yaw, rudder deflection moment, rudder effectiveness
-        Cnda  = self.parames.CN_da    #< Yaw, aileron defection moment, aileron inducted yaw  
+        Cnb   = self.params.CN_b     #< Yaw, sideslip moment, yaw stability
+        Cnp   = self.params.CN_p     #< Yaw, roll-rate moment, rikk-yaw coupling 
+        Cnr   = self.params.CN_r     #< Yaw, yaw-rate moment, yaw damping
+        Cndr  = self.params.CN_dr    #< Yaw, rudder deflection moment, rudder effectiveness
+        Cnda  = self.params.CN_da    #< Yaw, aileron defection moment, aileron inducted yaw
 
-        Vabs = self.V.abs() #<math.sqrt(Vx**2 +Vy**2 +Vw**2)
-        Wp, Wq, Wr = self.W
+        Wp, Wq, Wr = self.W.p, self.W.q, self.W.r
 
         ##=======================================================================================================================
         ## Momenets and rotation
         ## X axis
         self.T.p = qSb * ( Clo +( Clda * self.delta_a ) +( Clp*Wp*_B/(2*Vabs)) +( Clr*Wr*_B/(2*Vabs)))
-        Ap = self.T.p / self.parames._Ixx ## calc roll rate radians/sec. (Torue / Moment_Inertia) * time 
+        Ap = self.T.p / self.params._Ixx ## calc roll rate radians/sec. (Torue / Moment_Inertia) * time 
         Wp += Ap * dt
         
         ## Y axis
         self.T.q = qSc * ( Cmde * self.delta_e +Cma * self.alpha_r +Cmq * Wq )
-        Aq = self.T.q / self.parames._Iyy ## calc pitch rate radians/sec. (Torque / Moment_Inertia) * time     
+        Aq = self.T.q / self.params._Iyy ## calc pitch rate radians/sec. (Torque / Moment_Inertia) * time     
         Wq += Aq * dt
 
         ## Z axis 
-        self.T.r = qSb * ( Cno +(Cnb * self.beta_r) + (Cnp * Wp*self.parames._B/(2*Vabs)) +( Cnr * Wr*self.parames._B/(2*Vabs) +( Cndr * self.delta_r ) ))
-        Ar = self.T.r / self.parames._Izz      ## calc yaw rate radians/sec. (Torque / Moment_Inertia) * time
+        self.T.r = qSb * ( Cno +(Cnb * self.beta_r) + (Cnp * Wp*self.params._B/(2*Vabs)) +( Cnr * Wr*self.params._B/(2*Vabs) +( Cndr * self.delta_r ) ))
+        Ar = self.T.r / self.params._Izz      ## calc yaw rate radians/sec. (Torque / Moment_Inertia) * time
         Wr += Ar * dt
         ##=======================================================================================================================   
 
         ## Lift and drag forces - linear
-        CLo   = self.parames.CL_0
-        CLa   = self.parames.CL_ALPHA     
-        CDo   = self.parames.CD_0
-        Cyb   = self.parames.CY_B
-        Cydr  = self.parames.CY_DELTA_R
-        Cyp   = self.parames.CY_p
-        Cyr   = self.parames. CY_r
+        CLo   = self.params.CL_0
+        CLa   = self.params.CL_ALPHA     
+        CDo   = self.params.CD_0
+        Cyb   = self.params.CY_B
+        Cydr  = self.params.CY_DELTA_R
+        Cyp   = self.params.CY_p
+        Cyr   = self.params. CY_r
 
         CL = ( CLo + ( CLa * self.alpha_r ))
-        Cd = ( CDo + ( self.parames.K*(CL**2) ))
+        Cd = ( CDo + ( self.params.K*(CL**2) ))
         
         self.Lift = qS * CL
         self.Drag = qS * Cd
@@ -258,8 +259,8 @@ class AeroModel():
         self.F.x = self.Lift * math.sin(self.alpha_r)\
                   -self.Drag * math.cos(self.alpha_r)\
                   +self.Thrust\
-                  -self.Weight * math.sin(self.Pitch)
-        Au = self.F.x / self.parames.MASS  
+                  -self.Weight * math.sin(self.attitude.pitch_r)
+        Au = self.F.x / self.params.MASS  
         self.V.x += Au * dt
 
         ## Y Axis
@@ -272,7 +273,7 @@ class AeroModel():
         Av = self.F.y / self.params.MASS\
                   +Wr * self.V.x\
                   -Wp * self.V.z\
-                  +self.parames.G * math.cos(self.attitude.pitch_r) * math.sin(self.attitude.roll_r)
+                  +self.params.G * math.cos(self.attitude.pitch_r) * math.sin(self.attitude.roll_r)
         self.V.y += Av * dt
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
@@ -280,27 +281,24 @@ class AeroModel():
                   -self.Drag * math.sin(self.alpha_r)\
                   -self.Weight*math.cos(self.attitude.roll_r)*math.cos(self.attitude.pitch_r)
         self.F.z *= -1
-        Aw = self.F.z / self.parames.MASS
+        Aw = self.F.z / self.params.MASS
         self.V.z += Aw * dt
-        ##=======================================================================================================================   
-
-        ## Body to Intertial transform
-        d_q = Qtrn4()
-        Vi_inertial = Vec3()
 
         self.W.x = Wp
         self.W.y = Wq
         self.W.z = Wr
+        ##=======================================================================================================================   
 
+        ## Body to Intertial transform
         ## Quaternion process, next 5 lines
-        d_q = quat_from_ang_rates( self.W, dt )   
+        d_q = self.W.getQuaternion(dt)   
         self._q.multiply(d_q )
-        self._q.normalize_quat()
-        Vi_inertial = rotate_body_to_inrtl( self.Vinf_V, self._q ) ##< ???       
-        self.Att.roll_r, self.Att.pitch_r, self.Att.yaw_r = self._q.Qtrn_to_Euler_deg()
+        self._q.normalize()
+        Vi_inertial = rotate_body_to_inrtl( self.V, self._q ) ##< ???       
+        self.Attitude.roll_r, self.Attitude.pitch_r, self.attitude.yaw_r = self._q.Qtrn_to_Euler_deg()
 
-        Vinf_V.x = Vx
-        Vinf_V.y = Vy
+#        Vinf_V.x = Vx
+#        Vinf_V.y = Vy
 
         ## 6DOF inertial solution       
         self.position.x += Vi_inertial.x * dt
@@ -344,12 +342,17 @@ def T_Body_to_Inrt_Vel( V_body, q ):
         R31 * V_body.x + R32 * V_body.y + R33 * V_body.z)
 
 ## Create delta quaternion from angular Vi
-
 def rotate_body_to_inrtl( body, q ):
     """Rotate body vector to inertial frame using quaternion"""
     p = Qtrn(w=0, x=body.x, y=body.y, z=body.z)
-    q.quat_multiply( p ).multiply( q_conj )
+    q.multiply( p ).multiply( q_conj )
     return Vec_xyz(x=rotated.x, y=rotated.y, z=rotated.z)
  
 ## End - ChatGTP Quaternion Code
 ##================================================================================================================= 
+
+if __name__ == "__main__":
+    mdl = AeroModel(dt=0.1, altInit_m=0.0, speed_fps=1.0, weight_lbs=1000, units="Metric")
+    ctrl = Controls(Elevator_Cmd=0.0, Aileron_Cmd=0.0, Rudder_Cmd=0.0, Throttle_Cmd=0.0)
+    mdl.step(ctrl, dt=0.1)
+    
