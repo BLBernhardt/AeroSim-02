@@ -60,6 +60,9 @@ class Qtrn():
     def mag(self) -> float:
         return math.sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
 
+    def conj(self):
+        return Qtrn(self.w, -self.x, -self.y, -self.z)
+    
     def multiply( self, q2 ): 
         """Quaternion multiplication"""
         q1 = self
@@ -295,10 +298,7 @@ class AeroModel():
         self._q.multiply(d_q )
         self._q.normalize()
         Vi_inertial = rotate_body_to_inrtl( self.V, self._q ) ##< ???       
-        self.Attitude.roll_r, self.Attitude.pitch_r, self.attitude.yaw_r = self._q.Qtrn_to_Euler_deg()
-
-#        Vinf_V.x = Vx
-#        Vinf_V.y = Vy
+        self.Attitude.roll_r, self.Attitude.pitch_r, self.attitude.yaw_r = self._q.getEuler()
 
         ## 6DOF inertial solution       
         self.position.x += Vi_inertial.x * dt
@@ -322,19 +322,19 @@ def T_Body_to_Inrt_Vel( V_body, q ):
     x = q.x
     y = q.y
     z = q.z
-    w = q.w;
+    w = q.w
 
-    R11 = 1 - 2 * ( y * y + z * z );
-    R12 = 2     * ( x * y - z * w );
-    R13 = 2     * ( x * z + y * w );
+    R11 = 1 - 2 * ( y * y + z * z )
+    R12 = 2     * ( x * y - z * w )
+    R13 = 2     * ( x * z + y * w )
 
-    R21 = 2     * ( x * y + z * w );
-    R22 = 1 - 2 * ( x * x + z * z );
-    R23 = 2     * ( y * z - x * w );
+    R21 = 2     * ( x * y + z * w )
+    R22 = 1 - 2 * ( x * x + z * z )
+    R23 = 2     * ( y * z - x * w )
 
-    R31 = 2     * ( x * z - y * w );
-    R32 = 2     * ( y * z + x * w );
-    R33 = 1 - 2 * ( x * x + y * y );
+    R31 = 2     * ( x * z - y * w )
+    R32 = 2     * ( y * z + x * w )
+    R33 = 1 - 2 * ( x * x + y * y )
 
     return Vec_xyz(
         R11 * V_body.x + R12 * V_body.y + R13 * V_body.z,
@@ -345,8 +345,8 @@ def T_Body_to_Inrt_Vel( V_body, q ):
 def rotate_body_to_inrtl( body, q ):
     """Rotate body vector to inertial frame using quaternion"""
     p = Qtrn(w=0, x=body.x, y=body.y, z=body.z)
-    q.multiply( p ).multiply( q_conj )
-    return Vec_xyz(x=rotated.x, y=rotated.y, z=rotated.z)
+    q.multiply( p ).multiply( q.conj() )
+    return Vec_xyz(x=q.x, y=q.y, z=q.z)
  
 ## End - ChatGTP Quaternion Code
 ##================================================================================================================= 
@@ -355,4 +355,3 @@ if __name__ == "__main__":
     mdl = AeroModel(dt=0.1, altInit_m=0.0, speed_fps=1.0, weight_lbs=1000, units="Metric")
     ctrl = Controls(Elevator_Cmd=0.0, Aileron_Cmd=0.0, Rudder_Cmd=0.0, Throttle_Cmd=0.0)
     mdl.step(ctrl, dt=0.1)
-    
