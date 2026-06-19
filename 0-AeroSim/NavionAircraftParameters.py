@@ -4,19 +4,19 @@ class NavionParams():
     G     =  32.1740  #< ft/sec^2
     #G     =  9.81     #< m/sec^2
 
-#    FTStoKNOTS = 0.592      #< ft/sec = 0.592 knots.
+#    FTStoKNOTS = 0.592      #< ft/sec = 0.592 knots
 #    dt = 0.01 #< Time step for integration (s)
 #    MAX_DELTA_E = 10.0  #< Max elevator deflection (degrees)
 #    THRTL_INIT = 0.7
 
-    ELV_TRIM    =  0.0 #< degrees
-    ELV_MAX_ANG = 20.0 #< degrees
+    ELV_TRIM_D    =  0.0 #< degrees
+    ELV_MAX_ANG_D = 20.0 #< degrees
 
-    AIL_TRIM    =  0.0 #< degrees
-    AIL_MAX_ANG = 30.0 #< degrees
+    AIL_TRIM_D    =  0.0 #< degrees
+    AIL_MAX_ANG_D = 30.0 #< degrees
 
-    RUD_TRIM    =  0.0 #< degrees
-    RUD_MAX_ANG = 20.0 #< degrees
+    RUD_TRIM_D    =  0.0 #< degrees
+    RUD_MAX_ANG_D = 20.0 #< degrees
 
     MAX_THRUST = 360.0  #< Thrust in lbs_F
     #MAX_THRUST = 1601.36  #< Thrust in Newtons
@@ -28,8 +28,8 @@ class NavionParams():
 
 
 #    RHO_0 = 0.002377  #< Air density (slugs/ft³)
-#    #RHO_0 1.2041     #<[kg/m3] #< density of air( at sea level and standard pressure ) .
-#    RHO_0_m = 1.2041        #<[kg/m3] #< density of air( at sea level and standard pressure ) .
+#    #RHO_0 1.2041     #<[kg/m3] #< density of air( at sea level and standard pressure )
+#    RHO_0_m = 1.2041        #<[kg/m3] #< density of air( at sea level and standard pressure )
     RHO_10000 = 0.001756
     RHO = RHO_10000
 
@@ -70,7 +70,7 @@ class NavionParams():
     Cl_0       =  0.0    #< Roll, Zero-control moment ( typically small or zero in symmetric flight )
     Cl_DA      = -0.134  #< Roll, Aileron effectiveness 9 change in Cl per radian of aileron deflection )
     Cl_P       = -0.410  #< Roll, Damping ( change in Cl per unit of roll rate )
-    Cl_R       =  0.107  #< Roll, Yaw-roll coupling ( change in Cl per unti of yaw rate. )
+    Cl_R       =  0.107  #< Roll, Yaw-roll coupling ( change in Cl per unti of yaw rate )
 
     CN_0       = -0.0    #< Yaw, sideslip moment, yaw stability
     CN_b       =  0.0907 #< Yaw, sideslip moment, yaw stability
