@@ -91,7 +91,7 @@ class Qtrn():
             self.y /= mag
             self.z /= mag
         else:
-            printf("Error - normalize_quat() - something wrong with quaternion - divide by zero, mag = 0.0 \n");
+            printf("Error - normalize_quat() - something wrong with quaternion - divide by zero, mag = 0.0 \n")
         return self
 
     def getEuler(self): 
@@ -246,7 +246,7 @@ class AeroModel():
         Wq += Aq * dt
 
         ## Z axis 
-        self.T.r = qSb * ( Cno +(Cnb * self.beta_r) + (Cnp * Wp*self.params._B/(2*Vabs)) +( Cnr * Wr*self.params._B/(2*Vabs) +( Cndr * self.delta_r ) ))
+        self.T.r = qSb * ( Cno +(Cnb * self.beta_r) + (Cnp * Wp*_B/(2*Vabs)) +( Cnr * Wr*_B/(2*Vabs) +( Cndr * self.delta_r ) ))
         Ar = self.T.r / self.params._Izz      ## calc yaw rate radians/sec. (Torque / Moment_Inertia) * time
         Wr += Ar * dt
         ##=======================================================================================================================   
@@ -258,7 +258,7 @@ class AeroModel():
         Cyb   = self.params.CY_B
         Cydr  = self.params.CY_DELTA_R
         Cyp   = self.params.CY_p
-        Cyr   = self.params. CY_r
+        Cyr   = self.params.CY_r
 
         CL = ( CLo + ( CLa * self.alpha_r ))
         Cd = ( CDo + ( self.params.K*(CL**2) ))
@@ -289,9 +289,9 @@ class AeroModel():
         self.V.y += Av * dt
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
-        self.F.z = self.Lift*math.cos(self.alpha_r)\
+        self.F.z = self.Lift * math.cos(self.alpha_r)\
                   -self.Drag * math.sin(self.alpha_r)\
-                  -self.Weight*math.cos(self.attitude.roll_r)*math.cos(self.attitude.pitch_r)
+                  -self.Weight * math.cos(self.attitude.roll_r) * math.cos(self.attitude.pitch_r)
         self.F.z *= -1
         Aw = self.F.z / self.params.MASS
         self.V.z += Aw * dt
