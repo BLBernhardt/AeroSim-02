@@ -140,26 +140,23 @@ class AeroModel():
         self.dt = dt
         self.time = 0.0
 
-        self.position = Vec_xyz(0.0, 0.0, altInit_m) 
-        #self.P = Vec_xyz(0.0, 0.0, altInit_m) 
+        self.position = Vec_xyz(0.0, 0.0, -altInit_m) 
         self.V = Vec_xyz(speed_fps, 0.0, 0.0) #< u, v, w  linear Velocity 
-        self.A = Vec_xyz() #< u, v, w  linear Acceleration   
-        self.F = Vec_xyz() #< u, v, w  linear Force (forward, right, down )
+        self.A = Vec_xyz() #< Acceleration (u, v, w)
+        self.F = Vec_xyz() #< Force (forward, right, down )
 
         self._q = Qtrn(1.0, 0.0, 0.0, 0.0) #< Initial orientation    
         self.attitude = Attitude()
-        #self.Ar = Vec_pqr()   #< Roll (x), Pitch (y), Yaw (z) angular position
-        self.W = Vec_pqr() #< p, q, r (xyz) angular velocity
+        self.W = Vec_pqr()     #< p, q, r (xyz) angular velocity
         self.W_dot = Vec_pqr() #< p_dot, q_dot, r_dot (xyz) angular accel
-        self.L = Vec_pqr() #< L, M, N (xyz) angular moment
-        self.T = Vec_pqr() #< L, M, N (xyz) Torque
+        self.L = Vec_pqr()     #< Angular moment
+        self.T = Vec_pqr()     #< Torque
     
         self.alpha_r = 0.0  #< Angle of attack 
         self.beta_r = 0.0   #< Sideslip angle 
         self.Lift, self.Drag = (0.0, 0.0)
-        #self.Altitude_m  = altInit_m
 
-        self.Wind = Vec_xyz()        #< wind vector [m/s] 
+        self.Wind = Vec_xyz()     #< wind vector [m/s] 
 
         self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
         self.Thrust = 0.0 
@@ -272,8 +269,8 @@ class AeroModel():
                   -self.Drag * math.cos(self.alpha_r)\
                   +self.Thrust\
                   -self.Weight * math.sin(self.attitude.pitch_r)
-        Au = self.F.x / self.params.MASS  
-        self.V.x += Au * dt
+        self.A.x = self.F.x / self.params.MASS  
+        self.V.x += self.A.x * dt
 
         ## Y Axis
         Cy = Cyb * self.beta_r\
@@ -282,19 +279,19 @@ class AeroModel():
              +Cyr * Wr * self.V.z / Vabs
 
         self.F.y = qS * Cy
-        Av = self.F.y / self.params.MASS\
+        self.A.y = self.F.y / self.params.MASS\
                   +Wr * self.V.x\
                   -Wp * self.V.z\
                   +self.params.G * math.cos(self.attitude.pitch_r) * math.sin(self.attitude.roll_r)
-        self.V.y += Av * dt
+        self.V.y += self.A.y * dt
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
         self.F.z = self.Lift * math.cos(self.alpha_r)\
                   -self.Drag * math.sin(self.alpha_r)\
                   -self.Weight * math.cos(self.attitude.roll_r) * math.cos(self.attitude.pitch_r)
         self.F.z *= -1
-        Aw = self.F.z / self.params.MASS
-        self.V.z += Aw * dt
+        self.A.z = self.F.z / self.params.MASS
+        self.V.z += self.A.z * dt
 
         self.W.x = Wp
         self.W.y = Wq
@@ -315,6 +312,25 @@ class AeroModel():
         self.position.y += Vi_inertial.y * dt
         self.position.z -= Vi_inertial.z * dt
         ##=================================================================================================================
+
+    def __str__(self):
+        s = "="*10 +" %1.2f sec "%(self.time) +"="*10 +"\n"
+        Pos = self.position
+        s += "X-Forward; Y-Right; Z-Down\n"
+        s += "Position:, %1.2f, %1.2f, %1.2f\n"%(   Pos.x,    Pos.y,    Pos.z)
+        s += "Velosity:, %1.2f, %1.2f, %1.2f\n"%(self.V.x, self.V.y, self.V.z)
+        s += "Accel   :, %1.2f, %1.2f, %1.2f\n"%(self.A.x, self.A.y, self.A.z)
+
+        Att = self.attitude
+        s += "\n"
+        s += "p-Roll; q-Pitch; r-Yaw\n"
+        s += "Attitude :, %1.2f, %1.2f, %1.2f\n"%(Att.roll_r, Att.pitch_r, Att.yaw_r)
+        s += "Omega    :, %1.2f, %1.2f, %1.2f\n"%(self.W.p, self.W.q, self.W.r)
+        s += "Omega_dot:, %1.2f, %1.2f, %1.2f\n"%(self.W_dot.p, self.W_dot.q, self.W_dot.r)
+        return s
+
+    def print(self):
+        print(self)
 
     def getAttitude(self):
         """Return Vector3( roll_rad, pitch_rad, yaw_rad )"""
@@ -364,6 +380,10 @@ def rotate_body_to_inrtl( body, q ):
 ##================================================================================================================= 
 
 if __name__ == "__main__":
-    mdl = AeroModel(dt=0.1, altInit_m=0.0, speed_fps=1.0, weight_lbs=1000, units="Metric")
+    mdl = AeroModel(dt=0.1, altInit_m=0.0, speed_fps=210.0, weight_lbs=2750, units="Metric")
     ctrl = Controls(Elevator_Cmd=0.0, Aileron_Cmd=0.0, Rudder_Cmd=0.0, Throttle_Cmd=0.0)
-    mdl.step(ctrl, dt=0.1)
+    mdl.print()
+    for i in range(0,10):
+        mdl.step(ctrl, dt=0.1)
+        mdl.print()
+    
