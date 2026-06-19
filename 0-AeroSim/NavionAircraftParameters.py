@@ -48,7 +48,7 @@ class NavionParams():
     CD_0       = 0.025   #< Drag coefficient
     K          = 0.061   #< Induced Drag Factor
 
-    CM_0          0.0    #< Baseline pitching moment coefficient
+    CM_0       =  0.0    #< Baseline pitching moment coefficient
     CM_Q       = -0.7    #< Pitch damping coefficient#-0.7, -0.15
     CM_DELTA_E = -0.923  #< Pitching moment slope due to elevator deflection (per radian)
     CM_ALPHA   = -0.683  #< Pitching moment slope due to AoA (per radian)

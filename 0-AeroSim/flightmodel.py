@@ -10,133 +10,190 @@ import NavionAircraftParameters as airMdl
 PI = math.pi
 RADtoDEG = 180/PI
 
-class Vec3:
-    def __init__(self, x=0,y=0,z=0):
-        self.x=x
-        self.y=y
-        self.z=z        
-
-class Qtrn4:
-    def __init__(self, w=0,x=0,y=0,z=0):
-        self.w=w
-        self.x=x
-        self.y=y
-        self.z=z        
-
 def Sign( x ):
     if  x  < 0 :
         return -1
     return 1
 
-##=======================================================
-##  V           Linear Velocity x,y,z
-##  A           Linear Acceleration  x,y,z
-##
-##  W           Angular Velocity x,y,z
-##  W_dot       Angular Acceleration x,y,z
-##  
-##  F           Force x,y,z
-##  T           Torgue x,y,z
-##========================================================
+class Vec_xyz():
+    def __init__(self, x=0,y=0,z=0):
+        self.x=x #< Forward
+        self.y=y #< Right
+        self.z=z #< Down
+
+    def mag(self) -> float:
+        return math.sqrt(self.x**2 +self.y**2 +self.z**2)
+
+class Vec_pqr():
+    def __init__(self, p=0,q=0,r=0):
+        self.p=p #< Roll
+        self.q=q #< Pitch
+        self.r=r #< Yaw
+
+    def mag(self) -> float:
+        return math.sqrt(self.p**2 +self.q**2 +self.r**2)
+
+    def getQuat(self, dt ):
+        """  """
+        mag = self.mag()
+        if ( mag == 0.0 ):
+            return Qtrn( 1, 0, 0, 0 )
+
+        half_angle = 0.5 * mag * dt
+        sin_half = math.sin( half_angle )
+        cos_half = math.cos( half_angle )
+
+        return Qtrn(
+            w=cos_half,
+            x=sin_half * self.p / mag,
+            y=sin_half * self.q / mag,
+            z=sin_half * self.r / mag)
+
+class Qtrn():
+    def __init__(self, w=0,x=0,y=0,z=0):
+        self.w=w
+        self.x=x
+        self.y=y
+        self.z=z        
+     
+    def mag(self) -> float:
+        return math.sqrt(self.w**2, self.x**2 +self.y**2 +self.z**2)
+
+    def multiply( self, q2 ): 
+        """Quaternion multiplication"""
+        q1 = self
+        w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
+        x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y
+        y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x
+        z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
+        self.w, self.x, self.y, self.z  = (w,x,y,z)
+        return self
+
+    def normalize(self) -> None: 
+        """Normalize quaternion"""
+        mag = self.mag()
+        if mag > 0.0:
+            self.w /= mag
+            self.x /= mag
+            self.y /= mag
+            self.z /= mag
+        else:
+            printf("Error - normalize_quat() - something wrong with quaternion - divide by zero, mag = 0.0 \n");
+        return self
+
+    def getEuler(self): 
+        """Extract Euler angles from quaternion( roll, pitch, yaw in degrees )"""
+        ## Roll( X-axis rotation )
+        sinr_cosp = 2.0*( self.w * self.x + self.y * self.z )
+        cosr_cosp = 1.0 -2.0*( self.x**2 +self.y**2 )
+        roll = math.atan2( sinr_cosp, cosr_cosp )
+
+        ## Pitch( Y-axis rotation )
+        sinp = 2.0 * ( self.w * self.y - self.z * self.x )
+        if( abs(sinp) >= 1.0 ):
+            pitch = Sign(sinp)*M_PI / 2.0
+        else:
+            pitch = math.asin( sinp )
+
+        ## Yaw( Z-axis rotation )
+        siny_cosp = 2.0 * ( self.w * self.z + self.x * self.y )
+        cosy_cosp = 1.0 - 2.0 * ( self.y**2 + q.z**2 )
+        yaw = math.atan2( siny_cosp, cosy_cosp )
+        return Vec_pqr(p=roll, q=pitch, r=yaw)
+
+    def Heading(self): 
+        """Compute Heading Ang_le ( radians )"""
+        ## Rotate body x-axis ( 1,0,0 ) Int_o inrt frame
+        fx = 1 - 2*(self.y**2 +self.z**2)
+        fz = 2 * ( self.x*self.z - self.w*self.y )
+        return math.atan2( fx, fz ) #< atan2( east, north )
+
+class Attitude():
+    def __init__(self, roll_r=0.0, pitch_r=0.0, yaw_r=0.0):
+        self.roll_r  = roll_r
+        self.pitch_r = pitch_r
+        self.yaw_r   = yaw_r        
 
 class AeroModel():
-    def __init__(self, dt, altInit, speed_fps, weight_lbs, units):
+    def __init__(self, dt, altInit_m, speed_fps, weight_lbs, units):
         self.params = airMdl()
         self.dt = dt
         self.time = 0.0
 
 ##===========================================================================================================
 ## Quaternions
-        self._q = Qtrn4f(1.0, 0.0, 0.0, 0.0) #< initial orientation    
-        self.W = Vec3()
-        self.Vinf_V = Vec3() 
-        self.position = Vec3() 
-        self.V = Vec3()  
+#        self.position = Vec3() 
+        self.P = Vec_xyz() 
+        self.V = Vec_xyz() #< u, v, w  linear Velocity 
+        self.A = Vec_xyz() #< u, v, w  linear Acceleration   
+        self.F = Vec_xyz() #< u, v, w  linear Force (forward, right, down )
+
+        self._q = Qtrn4f(1.0, 0.0, 0.0, 0.0) #< Initial orientation    
+        #self.attitude = Attitude()
+        self.Ar = Vec_pqr()   #< Roll (x), Pitch (y), Yaw (z) angular position
+        self.W = Vec_pqr() #< p, q, r (xyz) angular velocity
+        self.W_dot = Vec_pqr() #< p_dot, q_dot, r_dot (xyz) angular accel
+        self.L = Vec_pqr() #< L, M, N (xyz) angular moment
+        self.T = Vec_pqr() #< L, M, N (xyz) Torque
     
 ##===========================================================================================================
-        self.Roll_d = 0.0  #< Y (+) right
-        self.Pitch_d = 0.0 #< P (+) up
-        self.Yaw_d = 0.0   #< R (+) right
-        self.Roll = 0.0    #< Radians
-        self.Pitch = 0.0   #< Radians
-        self.Yaw = 0.0     #< Radians       
 
-        self.Fu, self.Fv, self.Fw = (0.0, 0.0, 0.0) #< X, Y, Z      linear Force (forward, right, down )
-        self.Au, self.Av, self.Aw = (0.0, 0.0, 0.0) #< u_dot, v_dot, w_dot linear accel     
-        self.Vu, self.Vv, self.Vw = (speed_fps;, 0.0, 0.0) #< u, v, w  linear Velocity 
-        self.Px, self.Py, self.Pz = (0.0, 0.0, 0.0) #< X, Y, Z  linear Position 
+        #self.Lm, self.Mm, self.Nm = (0.0, 0.0, 0.0) #< L, M, N (xyz) angular moment
+        #self.Ap, self.Aq, self.Ar = (0.0, 0.0, 0.0) #< p_dot, q_dot, r_dot (xyz) angular accel
+        #self.Pp, self.Pq, self.Pr = (0.0, 0.0, 0.0) #< Roll (x), Pitch (y), Yaw (z) angular position
 
-        self.Lm, self.Mm, self.Nm = (0.0, 0.0, 0.0) #< L, M, N (xyz) angular moment
-        self.Ap, self.Aq, self.Ar = (0.0, 0.0, 0.0) #< p_dot, q_dot, r_dot (xyz) angular accel
-        self.Wp, self.Wq, self.Wr = (0.0, 0.0, 0.0) #< p, q, r (xyz) angular rate
-        self.Pp, self.Pq, self.Pr = (0.0, 0.0, 0.0) #< Roll (x), Pitch (y), Yaw (z) angular position
-
-        self.Vinf = 0.0;           #< ft/sec
-        self.Vinf_Sq              = 0.0;
-
-        self.Alpha, self.Alpha2 = (0.0, 0.0)  #< angle of attack 
-        self.Beta = 0.0           #< sideslip angle 
+        self.alpha_r = 0.0  #< Angle of attack 
+        self.beta_r = 0.0   #< Sideslip angle 
         self.Lift, self.Drag = (0.0, 0.0)
-        self.Altitude_ft = altInit_ft
-        self.Altitude_m  = altInit_ft / 3.28084F;          ## 1 ft = 3.28094 meters
+        self.Altitude_m  = altInit_m
 
-        self.Wind = Vec3()           #< wind vector [m/s] 
+        self.Wind = Vec3()        #< wind vector [m/s] 
 
-        self.Weight = weight_lbs;    ## Weight lbs : mass (lbs/G slugs )
+        self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
         self.Thrust = 0.0 
 
         self.delta_e_deg = 0.0    #< Elevator deflection (degrees)
         self.delta_e = 0.0        #< Elevator deflection (radians)
         self.delta_e_trim = 0.0
 
-        self.delta_a_deg = 0.0
-        sself.delta_a = 0.0
+        self.delta_a_deg = 0.0    #< Aileron deflection (degrees)
+        sself.delta_a = 0.0       #< Aileron deflection (radians)
 
-        self.delta_r_deg = 0.0
-        self.delta_r = 0.0
+        self.delta_r_deg = 0.0    #< Rudder deflection (degrees)
+        self.delta_r = 0.0        #< Rudder deflection (radians)
 
         if (units == "Metric") or (units == "Imperial"):    
-            print("UNITS set to %s\n"%units);
+            print("UNITS set to %s\n"%units)
         else:
-            print(">>>>> Units Not defined %s\n"%units);  
+            print(">>>>> Units Not defined %s\n"%units)  
        
 
-    def step(self, Cntrls, dt=None ):
+    def step(self, ctrls, dt=None ):
         dt = self.dt if dt==None else dy
         self.time += dt
         
         ##================ Controls ================================================================================================
-        self.delta_e_deg  = -(Cntrls.Elevator_Cmd * self.params.ELV_MAX_ANG )      #< Pitch stick y axis range -1.0 to 1.0
+        self.delta_e_deg  = -(ctrls.Elevator_Cmd * self.params.ELV_MAX_ANG )      #< Pitch stick y axis range -1.0 to 1.0
         self.delta_e_trim = self.params.ELV_TRIM
         self.delta_e      = (self.delta_e_deg + self.delta_e_trim) * DEGtoRAD
 
-        self.delta_a_deg  = (Cntrls.Aileron_Cmd * self.params.AIL_MAX_ANG ) / 5.0  #< Roll stick x axis range -1.0 to 1.0
+        self.delta_a_deg  = (ctrls.Aileron_Cmd * self.params.AIL_MAX_ANG ) / 5.0  #< Roll stick x axis range -1.0 to 1.0
         self.delta_a      = self.delta_a_deg * DEGtoRAD
 
-        self.delta_r_deg  = (Cntrls.Rudder_Cmd * self.params.RUD_MAX_ANG )         #< Roll stick x axis range -1.0 to 1.0
+        self.delta_r_deg  = (ctrls.Rudder_Cmd * self.params.RUD_MAX_ANG )         #< Roll stick x axis range -1.0 to 1.0
         self.delta_r      = self.delta_r_deg * DEGtoRAD
 
-        self.Thrust = Cntrls.Throttle_Cmd * self.params.MAX_THRUST                 #< Throttle Command setting [ 0, 1]
+        self.Thrust = ctrls.Throttle_Cmd * self.params.MAX_THRUST                 #< Throttle Command setting [ 0, 1]
         ##================== End Controls ============================================================================================
 
         ##================== Airspeed, Alpha, Beta, Flight Path ======================================================================
         ## Update the airspeed 
-        if abs(self.Vu) < 0.001:       #< prevent devide by zero
-            self.Alpha = 0.0
-            self.Beta  = 0.0
+        if abs(self.X.x) < 1.0:
+            self.alpha_r = 0.0     #< No AOA and Sideslip at low speed
+            self.beta_r  = 0.0
         else:
-            self.Alpha = math.atan2(  self.Vw, self.Vu )   #< geometry - rise over run 
-            self.Beta  = math.atan2( -self.Vv, self.Vu )
-
-        self.Vinf    = math.sqrt( self.Vu**2 +self.Vw**2);   
-        self.Vinf_Sq = self.Vu**2 +self.Vv**2 +self.Vw**2
-        self.Vinf    = math.sqrt(self.Vinf_Sq)
-
-        Aero.Alpha = self.Alpha * RADtoDEG
-        Aero.Beta  = self.Beta * RADtoDEG
-
-        sideLift = 0.0
-        sideDrag = 0.0
+            self.alpha_r = math.atan2(  self.V.z, self.X.x ) #< Trajactor vs air-speed vectors
+            self.beta_r  = math.atan2( -self.V.y, self.V.x ) #< Trajactor vs air-speed vectors
 
         qS  = 0.5 * self.params.RHO * (self.params.Vinf**2) * self.params._S
         qSc = qS * self.params._C
@@ -160,22 +217,25 @@ class AeroModel():
         Cndr  = self.parames.CN_dr    #< Yaw, rudder deflection moment, rudder effectiveness
         Cnda  = self.parames.CN_da    #< Yaw, aileron defection moment, aileron inducted yaw  
 
+        Vabs = self.V.abs() #<math.sqrt(Vx**2 +Vy**2 +Vw**2)
+        Wp, Wq, Wr = self.W
+
         ##=======================================================================================================================
         ## Momenets and rotation
         ## X axis
-        Lm = qSb * ( Clo +( Clda * self.delta_a ) +( Clp*self.Wp*_B/(2*self.Vinf)) +( Clr*self.Wr*_B/(2*self.Vinf)))
-        Ap = Lm / self.parames._Ixx ## calc roll rate radians/sec. (Force / Moment_Inertia) * time 
-        self.Wp += Ap * dt
+        self.T.p = qSb * ( Clo +( Clda * self.delta_a ) +( Clp*Wp*_B/(2*Vabs)) +( Clr*Wr*_B/(2*Vabs)))
+        Ap = self.T.p / self.parames._Ixx ## calc roll rate radians/sec. (Torue / Moment_Inertia) * time 
+        Wp += Ap * dt
         
         ## Y axis
-        Mm = qSc * ( Cmde * self.delta_e +Cma * self.Alpha +Cmq * self.Wq )
-        Aq = Mm / self.parames._Iyy ## calc pitch rate radians/sec. (Force / Moment_Inertia) * time     
-        self.Wq += Aq * dt
+        self.T.q = qSc * ( Cmde * self.delta_e +Cma * self.alpha_r +Cmq * Wq )
+        Aq = self.T.q / self.parames._Iyy ## calc pitch rate radians/sec. (Torque / Moment_Inertia) * time     
+        Wq += Aq * dt
 
         ## Z axis 
-        Nm = qSb * ( Cno +(Cnb * self.Beta) + (Cnp * self.Wp*self.parames._B/(2*self.Vinf)) +( Cnr * self.Wr*self.parames._B/(2*Vinf) +( Cndr * self.delta_r ) ))
-        Ar = Nm / self.parames._Izz      ## calc yaw rate radians/sec. (Force / Moment_Inertia) * time
-        self.Wr += Ar * dt
+        self.T.r = qSb * ( Cno +(Cnb * self.beta_r) + (Cnp * Wp*self.parames._B/(2*Vabs)) +( Cnr * Wr*self.parames._B/(2*Vabs) +( Cndr * self.delta_r ) ))
+        Ar = self.T.r / self.parames._Izz      ## calc yaw rate radians/sec. (Torque / Moment_Inertia) * time
+        Wr += Ar * dt
         ##=======================================================================================================================   
 
         ## Lift and drag forces - linear
@@ -187,7 +247,7 @@ class AeroModel():
         Cyp   = self.parames.CY_p
         Cyr   = self.parames. CY_r
 
-        CL = ( CLo + ( CLa * self.Alpha ))
+        CL = ( CLo + ( CLa * self.alpha_r ))
         Cd = ( CDo + ( self.parames.K*(CL**2) ))
         
         self.Lift = qS * CL
@@ -195,207 +255,101 @@ class AeroModel():
         ##===============================================================   
 
         ## X Axis
-        self.Fu = self.Lift * math.sin(self.Alpha) -self.Drag * math.cos(self.Alpha) +self.Thrust -self.Weight * math.sin(self.Pitch)
-        self.Au = self.Fu / self.parames.MASS  
-        self.Vu += self.Au * dt
+        self.F.x = self.Lift * math.sin(self.alpha_r)\
+                  -self.Drag * math.cos(self.alpha_r)\
+                  +self.Thrust\
+                  -self.Weight * math.sin(self.Pitch)
+        Au = self.F.x / self.parames.MASS  
+        self.V.x += Au * dt
 
         ## Y Axis
-        Cy = Cyb * self.Beta\
+        Cy = Cyb * self.beta_r\
              +Cydr * self.delta_r\
-             +Cyp * ( self.Wp * self.Vw / (2*self.Vinf ))\
-             +Cyr * ( self.Wr * self.Vw / (2*self.Vinf ))
+             +Cyp * Wp * self.V.z / Vabs\
+             +Cyr * Wr * self.V.z / Vabs
 
-        self.Fv = qS * Cy
-        self.Av = (self.Fv / self.params.MASS ) +self.Wr * self.Vu -self.Wp * self.Vw +self.parames.G * math.cos(self.Pitch) * math.sin(self.Roll)
-        self.Vv += self.Av * dt
+        self.F.y = qS * Cy
+        Av = self.F.y / self.params.MASS\
+                  +Wr * self.V.x\
+                  -Wp * self.V.z\
+                  +self.parames.G * math.cos(self.attitude.pitch_r) * math.sin(self.attitude.roll_r)
+        self.V.y += Av * dt
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
-        self.Fw = -((( self.Lift * math.cos( self.Alpha )) -( self.Drag * math.sin( self.Alpha )) -( self.Weight * math.cos( self.Roll ) * math.cos( self.Pitch ))))
-        self.Aw = self.Fw / self.parames.MASS
-        self.Vw += self.Aw * dt
+        self.F.z = self.Lift*math.cos(self.alpha_r)\
+                  -self.Drag * math.sin(self.alpha_r)\
+                  -self.Weight*math.cos(self.attitude.roll_r)*math.cos(self.attitude.pitch_r)
+        self.F.z *= -1
+        Aw = self.F.z / self.parames.MASS
+        self.V.z += Aw * dt
         ##=======================================================================================================================   
 
         ## Body to Intertial transform
         d_q = Qtrn4()
         Vi_inertial = Vec3()
 
-        self.W.x = self.Wp
-        self.W.y = self.Wq
-        self.W.z = self.Wr
-        
+        self.W.x = Wp
+        self.W.y = Wq
+        self.W.z = Wr
+
         ## Quaternion process, next 5 lines
         d_q = quat_from_ang_rates( self.W, dt )   
-        self._q  = quat_multiply( self._q, d_q )
-        normalize_quat( self._q )
+        self._q.multiply(d_q )
+        self._q.normalize_quat()
         Vi_inertial = rotate_body_to_inrtl( self.Vinf_V, self._q ) ##< ???       
-        Qtrn_to_Euler_deg( self._q, self.Roll_d, self.Pitch_d, self.Yaw_d )
+        self.Att.roll_r, self.Att.pitch_r, self.Att.yaw_r = self._q.Qtrn_to_Euler_deg()
 
-        Vinf_V.x = self.Vu
-        Vinf_V.y = self.Vv
+        Vinf_V.x = Vx
+        Vinf_V.y = Vy
 
         ## 6DOF inertial solution       
         self.position.x += Vi_inertial.x * dt
         self.position.y += Vi_inertial.y * dt
         self.position.z -= Vi_inertial.z * dt
-        
-        self.Pitch = self.Pitch_d * DEGtoRAD
-        self.Roll = self.Roll_d * DEGtoRAD
-        self.Yaw  = self.Yaw_d * DEGtoRAD 
         ##=================================================================================================================
 
+    def getAttitude(self):
+        """Return Vector3( roll_rad, pitch_rad, yaw_rad )"""
+        return Vec3(self.roll_r, self.pitch_r, self.yaw_r)
 
-##========================================================================================================================
-##  Retained needed C++ code
-
-##Vector3 FlightModel::getAttitude( )
-Vector3 getAttitude( )
-{
- ## Vector3 result( b_Roll, b_Pitch, b_Yaw );
-
-  Vector3 result;
-    result.x = b_Roll;
-    result.y = b_Pitch;
-    result.z = b_Yaw;
-    return result;
-}
-
-##Vector3 FlightModel::getPosition( )
-Vector3 getPosition( )
-{
-##Vector3 result( b_X, b_Y, b_Z );
-## Vector3 result( 1.0, 2.0, 3.0 );
-
-  Vector3 result;
-    result.x = b_X;
-    result.y = b_Y;
-    result.z = b_Z;
-    return result;
-}
+    def getPosition(self):
+        """Return Vector3(x, y, z)"""
+        return Vec3(self.position.x, self.position.y, self.position.z)
 
 ##=================================================================================================================
 ## ChatGTP Quaternion Code
 
-## Rotate body Vel to inrt frame
-Vec3 T_Body_to_Inrt_Vel( const Vec3 &V_body, const Qtrn4f &q ) 
-{
-    Vec3 return_V;
-     float x = q.x, y = q.y, z = q.z, w = q.w;
+def T_Body_to_Inrt_Vel( V_body, q ): 
+    """Rotate body Vel to inrt frame"""
+    x = q.x
+    y = q.y
+    z = q.z
+    w = q.w;
 
-     float R11 = 1 - 2 * ( y * y + z * z );
-     float R12 = 2     * ( x * y - z * w );
-     float R13 = 2     * ( x * z + y * w );
+    R11 = 1 - 2 * ( y * y + z * z );
+    R12 = 2     * ( x * y - z * w );
+    R13 = 2     * ( x * z + y * w );
 
-     float R21 = 2     * ( x * y + z * w );
-     float R22 = 1 - 2 * ( x * x + z * z );
-     float R23 = 2     * ( y * z - x * w );
+    R21 = 2     * ( x * y + z * w );
+    R22 = 1 - 2 * ( x * x + z * z );
+    R23 = 2     * ( y * z - x * w );
 
-     float R31 = 2     * ( x * z - y * w );
-     float R32 = 2     * ( y * z + x * w );
-     float R33 = 1 - 2 * ( x * x + y * y );
+    R31 = 2     * ( x * z - y * w );
+    R32 = 2     * ( y * z + x * w );
+    R33 = 1 - 2 * ( x * x + y * y );
 
-    return return_V = 
-    { 
+    return Vec_xyz(
         R11 * V_body.x + R12 * V_body.y + R13 * V_body.z,
         R21 * V_body.x + R22 * V_body.y + R23 * V_body.z,
-        R31 * V_body.x + R32 * V_body.y + R33 * V_body.z
-    };
-}
-
-## Compute Heading Ang_le ( _radians )
-float Heading( const Qtrn4f &q ) 
-{
-     float x = q.x, y = q.y, z = q.z, w = q.w;
-
-     ## Rotate body x-axis ( 1,0,0 ) Int_o inrt frame
-     float fx = 1 - 2 * ( y*y + z*z );
-     float fz = 2 * ( x*z - w*y );
-     float Heading_rad = std::atan2( fx, fz ); ## atan2( east, north )
-     return Heading_rad;
-}
+        R31 * V_body.x + R32 * V_body.y + R33 * V_body.z)
 
 ## Create delta quaternion from angular Vi
-Qtrn4f quat_from_ang_rates( Vec3 W, double dt ) 
-{ 
-    double mag = sqrt( W.x * W.x + W.y * W.y + W.z * W.z );
-    
-    if( mag == 0.0 ) return( Qtrn4f ){ 1, 0, 0, 0 };
 
-    double half_angle = 0.5 * mag * dt;
-    double sin_half = sin( half_angle );
-    double cos_half = cos( half_angle );
-
-    return( Qtrn4f )
-    { 
-        cos_half,
-        sin_half * W.x / mag,
-        sin_half * W.y / mag,
-        sin_half * W.z / mag
-     };
- }
- 
-## Quaternion multiplication
-Qtrn4f quat_multiply( Qtrn4f q1, Qtrn4f q2 ) 
-{ 
-    Qtrn4f r;
-    r.w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
-    r.x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
-    r.y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x;
-    r.z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w;
-    return r;
-}
-
-## Normalize quaternion
-void normalize_quat( Qtrn4f *q ) 
-{ 
-    double mag = sqrt( q->w * q->w + q->x * q->x + q->y * q->y + q->z * q->z );
-    if( mag > 0.0 )
-    {
-        q->w /= mag;
-        q->x /= mag;
-        q->y /= mag;
-        q->z /= mag;
-    }
-    else printf("14] Error - normalize_quat() - something wrong with quaternion - divide by zero, mag = 0.0 \n"); 
-}
-
-## Rotate body vector to inertial frame using quaternion
-Vec3 rotate_body_to_inrtl( Vec3 body, Qtrn4f q ) 
-{ 
-    Qtrn4f p = { 0, body.x, body.y, body.z };
-    Qtrn4f q_conj = { q.w, -q.x, -q.y, -q.z };
-    Qtrn4f rotated = quat_multiply( quat_multiply( q, p ), q_conj );
-    return( Vec3 ){ rotated.x, rotated.y, rotated.z };
-}
-
-## Extract Euler angles from quaternion( roll, pitch, yaw in degrees )
-void Qtrn_to_Euler_deg( Qtrn4f q, double *Roll_d, double *Pitch_d, double *Yaw_d ) 
-{ 
-    ## Roll( X-axis rotation )
-    double sinr_cosp = 2.0 * ( q.w * q.x + q.y * q.z );
-    double cosr_cosp = 1.0 - 2.0 * ( q.x * q.x + q.y * q.y );
-    double roll = atan2( sinr_cosp, cosr_cosp );
-
-    ## Pitch( Y-axis rotation )
-    double sinp = 2.0 * ( q.w * q.y - q.z * q.x );
-    double pitch;
-    if( fabs( sinp ) >= 1.0 )
-        pitch = copysign( M_PI / 2.0, sinp );
-    else
-        pitch = asin( sinp );
-
-    ## Yaw( Z-axis rotation )
-    double siny_cosp = 2.0 * ( q.w * q.z + q.x * q.y );
-    double cosy_cosp = 1.0 - 2.0 * ( q.y * q.y + q.z * q.z );
-    double yaw = atan2( siny_cosp, cosy_cosp );
-
-    ## Convert to Degrees
-    *Roll_d     = roll * 180.0 / M_PI;
-    
-    *Pitch_d    = pitch * 180.0 / M_PI;
-    
-    *Yaw_d      = yaw * 180.0 / M_PI;
-    if( *Yaw_d < 0.0 ) * Yaw_d += 360.0;
- }
+def rotate_body_to_inrtl( body, q ):
+    """Rotate body vector to inertial frame using quaternion"""
+    p = Qtrn(w=0, x=body.x, y=body.y, z=body.z)
+    q.quat_multiply( p ).multiply( q_conj )
+    return Vec_xyz(x=rotated.x, y=rotated.y, z=rotated.z)
  
 ## End - ChatGTP Quaternion Code
 ##================================================================================================================= 
