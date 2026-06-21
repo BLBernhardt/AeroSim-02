@@ -10,16 +10,30 @@ import NavionAircraftParameters as airMdl
 
 class Attitude():
     def __init__(self, roll_r=0.0, pitch_r=0.0, yaw_r=0.0):
+        self.set(roll_r, pitch_r, yaw_r)
+        
+    def set(self, roll_r, pitch_r, yaw_r):
         self.roll_r  = roll_r
         self.pitch_r = pitch_r
-        self.yaw_r   = yaw_r        
+        self.yaw_r   = yaw_r
+        return self
 
+    def __str__(self) -> str:
+        s = ""
+        for v in (self.roll_r, self.pitch_r, self.roll_r):
+            s += "%1.3f, "%(v)
+        return s[0:-2]
+
+    def print(self) -> None:
+        print("Roll, Pitch, Roll (rad):, " +self.__str__())
+    
 class Controls():
-    def __init__(self, Elevator_Cmd, Aileron_Cmd, Rudder_Cmd, Throttle_Cmd):
+    def __init__(self, Elevator_Cmd, Aileron_Cmd, Rudder_Cmd, Throttle_Cmd, GearExtend_Cmd):
         self.Elevator_Cmd = Elevator_Cmd
         self.Aileron_Cmd  = Aileron_Cmd
         self.Rudder_Cmd   = Rudder_Cmd
         self.Throttle_Cmd = Throttle_Cmd
+        self.GearExtend_Cmd = int(GearExtend_Cmd)
         
 class AeroModel():
     def __init__(self, dt, altInit_m, speed_fps, weight_lbs, units):
@@ -32,10 +46,11 @@ class AeroModel():
         self.A = Vec_xyz() #< Acceleration (u, v, w)
         self.F = Vec_xyz() #< Force (forward, right, down )
 
-        self._q = Qtrn(1.0, 0.0, 0.0, 0.0) #< Initial orientation    
-        self.attitude = Attitude()
+        self.attitude = Attitude(0,0,0)       #< Initial orientation
+        self.att_q = Qtrn(1.0, 0.0, 0.0, 0.0) #< Initial orientation
+
         self.W = Vec_pqr()     #< p, q, r (xyz) angular velocity
-        self.W_dot = Vec_pqr() #< p_dot, q_dot, r_dot (xyz) angular accel
+        #self.W_dot = Vec_pqr() #< p_dot, q_dot, r_dot (xyz) angular accel
         self.T = Vec_pqr()     #< Torque
     
         self.alpha_r = 0.0  #< Angle of attack 
@@ -182,16 +197,19 @@ class AeroModel():
 
         ## Body to Intertial transform
         d_q = self.W.getQuaternion(dt)
-        self._q.multiply(d_q)
-        self._q.normalize()
-        Vi_inertial = rotate_body_to_inrtl( self.V, self._q ) ##< Rotate the velosity vector (shouldn't change trajectory - might be a big) 
-        R = self._q.getEuler()
+        self.att_q.multiply(d_q) #< Change
+        R = self.att_q.normalize().getEuler()
         self.attitude.roll_r, self.attitude.pitch_r, self.attitude.yaw_r = (R.p, R.q, R.r)
+        Vi_inertial = body_to_earth_Q( self.V, self.att_q ) ##< Rotate the velosity vector (shouldn't change trajectory - might be a big) 
+        R = self.att_q.getEuler()
 
+        #Vi_inertial.print()
         ## 6DOF inertial solution
         self.position.x += Vi_inertial.x * dt
         self.position.y += Vi_inertial.y * dt
+        #print(self.position.z ," -= ", Vi_inertial.z, " * ", dt)
         self.position.z -= Vi_inertial.z * dt #< Z axis is pointing down
+        #print("New: ",self.position.z)
         ##=================================================================================================================
 
     def __str__(self):
@@ -210,7 +228,7 @@ class AeroModel():
         s += "p-Roll; q-Pitch; r-Yaw\n"
         s += "Attitude :, %1.1f, %1.1f, %1.1f\n"%(Att.roll_r, Att.pitch_r, Att.yaw_r)
         s += "Omega    :, %1.3f, %1.3f, %1.3f\n"%(self.W.p, self.W.q, self.W.r)
-        s += "Omega_dot:, %1.3f, %1.3f, %1.3f\n"%(self.W_dot.p, self.W_dot.q, self.W_dot.r)
+        #s += "Omega_dot:, %1.3f, %1.3f, %1.3f\n"%(self.W_dot.p, self.W_dot.q, self.W_dot.r)
         s += "Torque   :, %1.2f, %1.2f, %1.2f\n"%(self.T.p, self.T.q, self.T.r)
         return s
 
