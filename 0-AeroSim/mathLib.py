@@ -23,7 +23,10 @@ class Vec_xyz():
         self.y=y #< Right
         self.z=z #< Down
         return self
-        
+
+    def getVector(self) -> list:
+        return [self.x, self.y, self.z]
+    
     def copy(self) -> Self:
         return Vec_xyz(self.x, self.y, self.z)
         
@@ -54,6 +57,16 @@ class Vec_pqr():
         
     def mag(self) -> float:
         return math.sqrt(self.p**2 +self.q**2 +self.r**2)
+
+    def getRotationTensor(self, dt ) -> list:
+        wx = self.p*dt
+        wy = self.q*dt
+        wz = self.r*dt
+        return [
+            [  1,-wz,  wy],
+            [ wz,  1, -wx],
+            [-wy, wx,   1]
+            ]
 
     def getQuaternion(self, dt ) -> Q:
         """  """
@@ -154,7 +167,88 @@ class Qtrn():
     def print(self) -> None:
         print("Qtrn_wxyz:, " +self.__str__())
 
+def printM(M, title="") -> None:
+    out = title
+    if title != "":
+        out += ":\n"
+    try:    
+        for row in M:
+            out += "|"
+            first = True
+            for elm in row:
+                if not first:
+                    out += ", "
+                first = False
+                out += "% 1.3f"%(elm)
+            out += "|\n"
+    except:
+        print(str(M))
+    print(out)
 
+def matrix(rows, cols, val=0) -> list:
+    """ Returns the rows by cols matrix M filled with value val """
+    M = [0]*rows
+    for row in range(0,rows):
+        M[row] = [val]*cols
+    return M
+
+def zeros(rows, cols) -> list:
+    """ Returns the rows by cols zero matrix Z """
+    return matrix(rows, cols, val=0)
+
+def MxV(M,V) -> list:
+    """
+    Return the result of NxM matrix and M vector multiplication
+    Matrix structure: M[row][col]
+    """
+    rows = len(M)
+    O = [0]*rows
+    for r,row in enumerate(M):
+        for m,v in zip(row,V):
+            O[r] += m*v
+    return O
+
+def MxM( A, B ) -> list:
+    """
+    Multiply two matrices 3x3.
+    Matrix structure: M[row][col]
+    """
+    rows = len(A)
+    cols = len(B[0])
+    matrixOut = zeros(rows, cols)
+    for y in range(0,rows):
+        for x in range(0,cols):
+            for i in range(len(B)):
+                matrixOut[y][x] += A[y][i]*B[i][x]
+    return matrixOut
+
+##def DCM_ZYX(a, b, c) -> list:
+##    """ a is around Z, b is around Y, and c is around X"""
+##    ca = cos(a)
+##    cb = cos(b)
+##    cc = cos(c)
+##
+##    p = pi/2
+##    sa = cos(a -p) #<sin(a)
+##    sb = cos(b -p) #<sin(b)
+##    sc = cos(c -p) #<sin(c)
+##
+##    DCM = [ [ca*cb, ca*sb*sc-cc*sa, sa*sc+ca*sb*cc],
+##            [sa*cb, sa*sb*sc+ca*cc, cc*sa*sb-ca*sc],
+##            [ -sb,       cb*sc,          cb*cc    ]]
+##    return DCM
+##
+##def get_abc_ZYX(dcm) -> list:
+##    R11 = dcm[0][0]
+##    R21 = dcm[1][0]
+##    R31 = dcm[2][0]
+##    R32 = dcm[2][1]
+##    R33 = dcm[2][2]
+##    a = math.atan(R21/R11)
+##    b = math.asin(-R31)
+##    c = math.atan(R32/R33)
+##    return (a,b,c)
+    
 def body_to_earth_M( body, q ) -> Vec_xyz: 
     """Rotate vector by a quaternion using matrix math"""
     x = q.x

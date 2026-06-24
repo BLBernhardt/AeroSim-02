@@ -50,7 +50,7 @@ class Data():
         self.time_Z1 = time.time()
         self.dt = 0.1
         self.data = Buses()
-        self.navion = AeroModel(dt=0.05, altInit_m=300.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
+        self.navion = AeroModel(dt=0.05, altInit_m=500.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
 
     def getData(self, test=False):
         """Generate and return new set of data"""
@@ -77,12 +77,13 @@ class Data():
             rud  = -roll
             sb   = 0.5
             throttle = cmds.throttleCmd +0.01*(keys[pygame.K_q] -keys[pygame.K_a])
+            cmds.throttleCmd = max(0, min(1, throttle))
 
             if test == "navion":
                 self.data.ctrls.Elevator_Cmd = -0.5*elev
                 self.data.ctrls.Aileron_Cmd  = 0.5*roll
                 self.data.ctrls.Rudder_Cmd   = rud
-                self.data.ctrls.Throttle_Cmd = throttle
+                self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
 
                 ### 6DOF MODEL
                 self.navionPhysics()
@@ -94,7 +95,7 @@ class Data():
                 cmds.rElevonCmd_d = 45*(-roll +elev)
                 cmds.rudderCmd_d  = rudder
                 cmds.speedbrakeCmd_d = speedbrake
-                cmds.throttleCmd = max(0, min(1, throttle))
+                #cmds.throttleCmd = cmds.throttleCmd
 
                 ### 6DOF MODEL
                 self.arcadePhysics()
@@ -128,26 +129,27 @@ class Data():
         mdl = self.navion
         mdl.step(m_data.ctrls, dt=self.dt) #, dt=self.dt)
 
-#        mdl.attitude.print()
 
         ins = m_data.ins
+        #mdl.attitude.print()
         ins.roll    =  radToDeg*mdl.attitude.roll_r
         ins.pitch   =  radToDeg*mdl.attitude.pitch_r
         ins.azimuth = -radToDeg*mdl.attitude.yaw_r
 
-        ins.height  = -mdl.position.z
-#        print("ALT: ", m_data.ins.height)
+        #mdl.position.print()
+        ins.north      =  mdl.position.x
+        ins.east       =  mdl.position.y
+        ins.height     = -mdl.position.z
 
-        airSpeed = mdl.V.mag()
-        ins.vel_up    = -mdl.V.z
-#        print("VSI: ", m_data.ins.vel_up)
-        ins.vel_north = airSpeed*math.sin(ins.azimuth)
-        ins.vel_east  = airSpeed**math.cos(ins.azimuth)
+        ins.vel_north  =  mdl.Ve.x #airSpeed*math.sin(ins.azimuth)
+        ins.vel_east   =  mdl.Ve.y #airSpeed**math.cos(ins.azimuth)
+        ins.vel_up     = -mdl.Ve.z
 
-        ins.upAcc      = -mdl.A.z
         ins.forwardAcc =  mdl.A.x
         ins.rightAcc   =  mdl.A.y
+        ins.upAcc      = -mdl.A.z
 
+        airSpeed = mdl.V.mag()
         ins.mach = airSpeed*0.002
 
         ### Ground collision detection

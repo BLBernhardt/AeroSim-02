@@ -4,7 +4,7 @@
 ##
 ##==============================================================================
 
-import math
+from math import pi, sin, asin, cos, atan2, sqrt
 from mathLib import *
 import NavionAircraftParameters as airMdl
 
@@ -16,7 +16,58 @@ class Attitude():
         self.roll_r  = roll_r
         self.pitch_r = pitch_r
         self.yaw_r   = yaw_r
+        self._updateDCM()
         return self
+
+    def _updateDCM(self) -> None:
+        """ a is around Z, b is around Y, and c is around X"""
+        p = pi/2
+        a,b,c = self.yaw_r, self.pitch_r, self.roll_r
+        ca,cb,cc = cos(a), cos(b), cos(c)
+        sa,sb,sc = cos(a -p), cos(b -p),cos(c -p) #< sin(a), sin(b), sin(c)
+
+        self.dcm = [ [ca*cb, ca*sb*sc-cc*sa, sa*sc+ca*sb*cc],
+                   [sa*cb, sa*sb*sc+ca*cc, cc*sa*sb-ca*sc],
+                   [ -sb,       cb*sc,          cb*cc    ]]
+
+    def addW(self, W, dt):
+        WxDT = W.getRotationTensor(dt)
+        self.dcm = MxM(self.dcm, WxDT)
+        self._normalize()._updateAngles()
+        return self
+        
+    def _normalize(self):
+        return self
+##        float temporary[3][3];
+##
+##        error = -Vector_Dot_dimN( self->DCM[0], self->DCM[1], 3)*0.5
+##
+##        Vector_Scale_dimN( temporary[0], self->DCM[1], error, 3 )
+##        Vector_Scale_dimN( temporary[1], self->DCM[0], error, 3 )
+##
+##        Vector_Add_dimN( temporary[0], temporary[0], self->DCM[0], 3 )
+##        Vector_Add_dimN( temporary[1], temporary[1], self->DCM[1], 3 )
+##
+##        Vector_Cross_dim3( temporary[2], temporary[0], temporary[1] )
+##
+##        renorm= 0.5 *(3 - Vector_Dot_dimN( temporary[0], temporary[0], 3) )
+##        Vector_Scale_dimN( self->DCM[0], temporary[0], renorm, 3 )
+##
+##        renorm = 0.5 *(3 - Vector_Dot_dimN( temporary[1], temporary[1], 3) )
+##        Vector_Scale_dimN( self->DCM[1], temporary[1], renorm, 3 )
+##
+##        renorm = 0.5 *(3 - Vector_Dot_dimN( temporary[2], temporary[2], 3))
+##        Vector_Scale_dimN(self->DCM[2], temporary[2], renorm, 3 )
+
+    def _updateAngles(self) -> None:
+        R11 = self.dcm[0][0]
+        R21 = self.dcm[1][0]
+        R31 = self.dcm[2][0]
+        R32 = self.dcm[2][1]
+        R33 = self.dcm[2][2]
+        self.yaw_r = atan2(R21,R11)
+        self.pitch_r = asin(-R31)
+        self.roll_r = atan2(R32,R33)
 
     def __str__(self) -> str:
         s = ""
@@ -47,10 +98,8 @@ class AeroModel():
         self.F = Vec_xyz() #< Force (forward, right, down )
 
         self.attitude = Attitude(0,0,0)       #< Initial orientation
-        self.att_q = Qtrn(1.0, 0.0, 0.0, 0.0) #< Initial orientation
 
         self.W = Vec_pqr()     #< p, q, r (xyz) angular velocity
-        #self.W_dot = Vec_pqr() #< p_dot, q_dot, r_dot (xyz) angular accel
         self.T = Vec_pqr()     #< Torque
     
         self.alpha_r = 0.0  #< Angle of attack 
@@ -102,10 +151,10 @@ class AeroModel():
             self.alpha_r = 0.0     #< No AOA and Sideslip at low speed
             self.beta_r  = 0.0
         else:
-            self.alpha_r = math.atan2(  self.V.z, self.V.x ) #< Trajactor vs air-speed vectors
-            self.beta_r  = math.atan2( -self.V.y, self.V.x ) #< Trajactor vs air-speed vectors
+            self.alpha_r = atan2(  self.V.z, self.V.x ) #< Trajactor vs air-speed vectors
+            self.beta_r  = atan2( -self.V.y, self.V.x ) #< Trajactor vs air-speed vectors
 
-        Vabs = self.V.mag() #<math.sqrt(Vx**2 +Vy**2 +Vz**2)
+        Vabs = self.V.mag() #<sqrt(Vx**2 +Vy**2 +Vz**2)
         qS  = 0.5 * self.params.RHO * (Vabs**2) * self.params._S
         _B    = self.params._B
         qSc = qS * self.params._C
@@ -166,12 +215,14 @@ class AeroModel():
         ##===============================================================   
 
         ## X Axis
-        self.F.x = self.Lift * math.sin(self.alpha_r)\
-                  -self.Drag * math.cos(self.alpha_r)\
+        self.F.x = self.Lift * sin(self.alpha_r)\
+                  -self.Drag * cos(self.alpha_r)\
                   +self.Thrust\
-                  -self.Weight * math.sin(self.attitude.pitch_r)
+                  -self.Weight * sin(self.attitude.pitch_r)
         self.A.x = self.F.x / self.params.MASS  
         self.V.x += self.A.x * dt #< Next state
+        print(self.Thrust)
+        #print(self.F.x, self.A.x, self.V.x)
 
         ## Y Axis
         Cy = Cyb * self.beta_r\
@@ -183,33 +234,26 @@ class AeroModel():
         self.A.y = self.F.y / self.params.MASS\
                   +Wr * self.V.x\
                   -Wp * self.V.z\
-                  +self.params.G * math.cos(self.attitude.pitch_r) * math.sin(self.attitude.roll_r)
+                  +self.params.G * cos(self.attitude.pitch_r) * sin(self.attitude.roll_r)
         self.V.y += self.A.y * dt #< Next state
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
-        self.F.z = self.Lift * math.cos(self.alpha_r)\
-                  -self.Drag * math.sin(self.alpha_r)\
-                  -self.Weight * math.cos(self.attitude.roll_r) * math.cos(self.attitude.pitch_r)
+        self.F.z = self.Lift * cos(self.alpha_r)\
+                  -self.Drag * sin(self.alpha_r)\
+                  -self.Weight * cos(self.attitude.roll_r) * cos(self.attitude.pitch_r)
         self.F.z *= -1
         self.A.z = self.F.z / self.params.MASS
         self.V.z += self.A.z * dt #< Next state
         ##=======================================================================================================================   
 
-        ## Body to Intertial transform
-        d_q = self.W.getQuaternion(dt)
-        self.att_q.multiply(d_q) #< Change
-        R = self.att_q.normalize().getEuler()
-        self.attitude.roll_r, self.attitude.pitch_r, self.attitude.yaw_r = (R.p, R.q, R.r)
-        Vi_inertial = body_to_earth_Q( self.V, self.att_q ) ##< Rotate the velosity vector (shouldn't change trajectory - might be a big) 
-        R = self.att_q.getEuler()
+        ## Angular velocity integration in body coordinates
+        self.attitude.addW(self.W, dt)
 
-        #Vi_inertial.print()
-        ## 6DOF inertial solution
-        self.position.x += Vi_inertial.x * dt
-        self.position.y += Vi_inertial.y * dt
-        #print(self.position.z ," -= ", Vi_inertial.z, " * ", dt)
-        self.position.z -= Vi_inertial.z * dt #< Z axis is pointing down
-        #print("New: ",self.position.z)
+        ## Body to earth transform
+        self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.V.getVector()))
+        self.position.x += self.Ve.x * dt
+        self.position.y += self.Ve.y * dt
+        self.position.z += self.Ve.z * dt #< Z axis is pointing down
         ##=================================================================================================================
 
     def __str__(self):
@@ -246,7 +290,7 @@ class AeroModel():
 
 if __name__ == "__main__":
     mdl = AeroModel(dt=0.1, altInit_m=0.0, speed_fps=210.0, weight_lbs=2750, units="Metric")
-    ctrl = Controls(Elevator_Cmd= 0.9, Aileron_Cmd=-0.0, Rudder_Cmd=.0, Throttle_Cmd=0.0)
+    ctrl = Controls(Elevator_Cmd= 0.9, Aileron_Cmd=-0.0, Rudder_Cmd=.0, Throttle_Cmd=0.0, GearExtend_Cmd=0.0)
     mdl.print()
     for i in range(0,20):
         mdl.step(ctrl, dt=0.1)

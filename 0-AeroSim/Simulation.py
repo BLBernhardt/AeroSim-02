@@ -143,7 +143,7 @@ class CockpitView():
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
         self.mach.update( ins.mach )
-        self.vsi.update(  ins.vel_up )
+        self.vsi.update(  60*ins.vel_up/1000 )
         self.head.update( ins.azimuth, ins.azimuth )
         self.airSpd.update( speed_knots )
         self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd)
