@@ -221,7 +221,7 @@ class AeroModel():
                   -self.Weight * sin(self.attitude.pitch_r)
         self.A.x = self.F.x / self.params.MASS  
         self.V.x += self.A.x * dt #< Next state
-        print(self.Thrust)
+        #print(self.Thrust)
         #print(self.F.x, self.A.x, self.V.x)
 
         ## Y Axis
