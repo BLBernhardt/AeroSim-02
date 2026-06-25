@@ -1,11 +1,11 @@
-import math
+from math import pi, sin, asin, cos, atan2, sqrt
 from typing import Self, TypeVar
 
 Q = TypeVar('Q', bound='Qtrn')
 V_xyz = TypeVar('V_xyz', bound='Vec_xyz')
 V_pqr = TypeVar('V_pqr', bound='Vec_pqr')
 
-PI = math.pi
+PI = pi
 RADtoDEG = 180/PI
 DEGtoRAD = PI/180
 
@@ -31,7 +31,7 @@ class Vec_xyz():
         return Vec_xyz(self.x, self.y, self.z)
         
     def mag(self) -> float:
-        return math.sqrt(self.x**2 +self.y**2 +self.z**2)
+        return sqrt(self.x**2 +self.y**2 +self.z**2)
 
     def __str__(self) -> str:
         s = ""
@@ -56,7 +56,7 @@ class Vec_pqr():
         return Vec_pqr(self.p, self.q, self.r)
         
     def mag(self) -> float:
-        return math.sqrt(self.p**2 +self.q**2 +self.r**2)
+        return sqrt(self.p**2 +self.q**2 +self.r**2)
 
     def getRotationTensor(self, dt ) -> list:
         wx = self.p*dt
@@ -75,8 +75,8 @@ class Vec_pqr():
             return Qtrn( 1, 0, 0, 0 )
 
         half_angle = 0.5 * mag * dt
-        sin_half = math.sin( half_angle )
-        cos_half = math.cos( half_angle )
+        sin_half = sin( half_angle )
+        cos_half = cos( half_angle )
 
         return Qtrn(
             w=cos_half,
@@ -104,7 +104,7 @@ class Qtrn():
         return Qtrn(self.w, self.x, self.y, self.z)
         
     def mag(self) -> float:
-        return math.sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
+        return sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
 
     def conj(self) -> Self:
         return Qtrn(self.w, -self.x, -self.y, -self.z)
@@ -136,19 +136,19 @@ class Qtrn():
         ## Roll( X-axis rotation )
         sinr_cosp = 2.0*( self.w * self.x + self.y * self.z )
         cosr_cosp = 1.0 -2.0*( self.x**2 +self.y**2 )
-        roll = math.atan2( sinr_cosp, cosr_cosp )
+        roll = atan2( sinr_cosp, cosr_cosp )
 
         ## Pitch( Y-axis rotation )
         sinp = 2.0 * ( self.w * self.y - self.z * self.x )
         if( abs(sinp) >= 1.0 ):
             pitch = Sign(sinp)*M_PI / 2.0
         else:
-            pitch = math.asin( sinp )
+            pitch = asin( sinp )
 
         ## Yaw( Z-axis rotation )
         siny_cosp = 2.0 * ( self.w * self.z + self.x * self.y )
         cosy_cosp = 1.0 - 2.0 * ( self.y**2 + self.z**2 )
-        yaw = math.atan2( siny_cosp, cosy_cosp )
+        yaw = atan2( siny_cosp, cosy_cosp )
         return Vec_pqr(p=roll, q=pitch, r=yaw)
 
     def Heading(self) -> float: 
@@ -156,7 +156,7 @@ class Qtrn():
         ## Rotate body x-axis ( 1,0,0 ) Int_o inrt frame
         fx = 1 - 2*(self.y**2 +self.z**2)
         fz = 2 * ( self.x*self.z - self.w*self.y )
-        return math.atan2( fx, fz ) #< atan2( east, north )
+        return atan2( fx, fz ) #< atan2( east, north )
 
     def __str__(self) -> str:
         s = ""
@@ -166,6 +166,103 @@ class Qtrn():
 
     def print(self) -> None:
         print("Qtrn_wxyz:, " +self.__str__())
+
+class Attitude():
+    def __init__(self, roll_r=0.0, pitch_r=0.0, yaw_r=0.0):
+        self.set(roll_r, pitch_r, yaw_r)
+        
+    def set(self, roll_r, pitch_r, yaw_r):
+        self.roll_r  = roll_r
+        self.pitch_r = pitch_r
+        self.yaw_r   = yaw_r
+        self._updateDCM()
+        return self
+
+    def _updateDCM(self) -> None:
+        """ a is around Z, b is around Y, and c is around X"""
+        p = PI/2
+        a,b,c = self.yaw_r, self.pitch_r, self.roll_r
+        ca,cb,cc = cos(a), cos(b), cos(c)
+        sa,sb,sc = cos(a -p), cos(b -p),cos(c -p) #< sin(a), sin(b), sin(c)
+
+        self.dcm = [ [ca*cb, ca*sb*sc-cc*sa, sa*sc+ca*sb*cc],
+                   [sa*cb, sa*sb*sc+ca*cc, cc*sa*sb-ca*sc],
+                   [ -sb,       cb*sc,          cb*cc    ]]
+
+    def addW(self, W, dt):
+        WxDT = W.getRotationTensor(dt)
+        self.dcm = MxM(self.dcm, WxDT)
+        self._normalize()._updateAngles()
+        return self
+        
+    def _normalize(self):
+        temporary = matrix(3,3)
+        error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
+        temporary[0] = Vxk( self.dcm[1], error)
+        temporary[1] = Vxk( self.dcm[0], error)
+
+        temporary[0] = V_add_V(temporary[0], self.dcm[0])
+        temporary[1] = V_add_V(temporary[1], self.dcm[1])
+
+        temporary[2] = VxV3( temporary[0], temporary[1] )
+
+        renorm= 0.5 *(3 -V_dot_V(temporary[0], temporary[0]) )
+        self.dcm[0] = Vxk(temporary[0], renorm)
+
+        renorm = 0.5 *(3 -V_dot_V(temporary[1], temporary[1]) )
+        self.dcm[1] = Vxk(temporary[1], renorm)
+
+        renorm = 0.5 *(3 - V_dot_V(temporary[2], temporary[2]) )
+        self.dcm[2] = Vxk(temporary[2], renorm)
+        return self
+
+    def _updateAngles(self) -> None:
+        R11 = self.dcm[0][0]
+        R21 = self.dcm[1][0]
+        R31 = self.dcm[2][0]
+        R32 = self.dcm[2][1]
+        R33 = self.dcm[2][2]
+        self.yaw_r = atan2(R21,R11)
+        #print(R31)
+        self.pitch_r = asin(-R31)
+        self.roll_r = atan2(R32,R33)
+
+    def __str__(self) -> str:
+        s = ""
+        for v in (self.roll_r, self.pitch_r, self.roll_r):
+            s += "%1.3f, "%(v)
+        return s[0:-2]
+
+    def print(self) -> None:
+        print("Roll, Pitch, Roll (rad):, " +self.__str__())
+
+def V_add_V(V1, V2) -> list:
+    """ Return the result of vector addition """
+    O = [0]*len(V1)
+    for i, (v1,v2) in enumerate(zip(V1, V2)):
+        O[i] = v1+v2
+    return O
+
+def Vxk( V, scale ):
+    """Multiply the vector by a scalar"""
+    vectorOut = [0]*len(V)
+    for i,v in enumerate(V):
+        vectorOut[i] = v*scale
+    return vectorOut
+
+def V_dot_V(V1, V2) -> float:
+    product = 0.0
+    for v1, v2 in zip(V1, V2):
+        product += v1*v2
+    return product
+
+def VxV3( V1, V2 ) -> list:
+    """Computes the cross product of two vectors"""
+    vectorOut = [0]*3
+    vectorOut[0]= (V1[1]*V2[2]) - (V1[2]*V2[1])
+    vectorOut[1]= (V1[2]*V2[0]) - (V1[0]*V2[2])
+    vectorOut[2]= (V1[0]*V2[1]) - (V1[1]*V2[0])
+    return vectorOut
 
 def printM(M, title="") -> None:
     out = title
@@ -228,7 +325,7 @@ def MxM( A, B ) -> list:
 ##    cb = cos(b)
 ##    cc = cos(c)
 ##
-##    p = pi/2
+##    p = PI/2
 ##    sa = cos(a -p) #<sin(a)
 ##    sb = cos(b -p) #<sin(b)
 ##    sc = cos(c -p) #<sin(c)
@@ -244,9 +341,9 @@ def MxM( A, B ) -> list:
 ##    R31 = dcm[2][0]
 ##    R32 = dcm[2][1]
 ##    R33 = dcm[2][2]
-##    a = math.atan(R21/R11)
-##    b = math.asin(-R31)
-##    c = math.atan(R32/R33)
+##    a = atan(R21/R11)
+##    b = asin(-R31)
+##    c = atan(R32/R33)
 ##    return (a,b,c)
     
 def body_to_earth_M( body, q ) -> Vec_xyz: 

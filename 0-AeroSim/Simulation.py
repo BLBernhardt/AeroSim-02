@@ -161,10 +161,17 @@ class CockpitView():
         self.head.draw()
         self.airSpd.draw()
         self.stck.draw()
-        
+
 if __name__ == "__main__":
     import time
     from TelemetryRx import Data
+    def help(mode):
+        print("Simulation mode: %s"%mode)
+        print("Move mouse to control elevator and ailerons")
+
+        ("Press 'Z' and 'C' to control rudder, use 'X' to reset")
+        print("Press 'Q' and 'A' to increase and decrease throttle")
+        print("Press 'G' and 'B' to retract and extend landing gears")
 
     # Initialise screen.
     BG_color = COLOR.DARK
@@ -180,6 +187,8 @@ if __name__ == "__main__":
     clock = Clock()
 
     mode = "navion" # False, "navion", "arcade"
+
+    help(mode)
     while True:
         ###Loop to update gauges
         #T0 = time.time()
