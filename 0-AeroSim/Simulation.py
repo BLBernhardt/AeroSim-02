@@ -33,7 +33,7 @@ class CockpitView():
         self.colorBG = colorBG
 
         ###Scaling the indicators
-        world_size   = (int(600*scale), int(300*scale))
+        world_size   = (int(900*scale), int(300*scale))
         turn_size    = (int(150*scale), int(150*scale))
         horizon_size = (int(150*scale), int(150*scale))
         alt_size     = (int(150*scale), int(150*scale))
@@ -42,7 +42,8 @@ class CockpitView():
         as_size      = (int(150*scale), int(150*scale))
         mach_size    = (int(150*scale), int(150*scale))
         stick_size   = (int(150*scale), int(150*scale))
-        bckgnd_size  = (int(600*scale), int(600*scale))
+        minimap_size = (int(300*scale), int(300*scale))
+        bckgnd_size  = (int(750*scale), int(600*scale))
 
         ###Positioning the gauges
         X0, Y0 = pos
@@ -51,6 +52,7 @@ class CockpitView():
         horizon_pos = (as_pos[0] +as_size[0] +gap, as_pos[1])
         alt_pos     = (horizon_pos[0] +horizon_size[0] +gap, horizon_pos[1])
         mach_pos    = (alt_pos[0] +alt_size[0] +gap, alt_pos[1])
+        minimap_pos = (mach_pos[0] +mach_size[0] +gap, mach_pos[1])
 
         turn_pos  = (as_pos[0], as_pos[1] +as_size[1] +gap)
         head_pos  = (turn_pos[0] +turn_size[0] +gap, turn_pos[1])
@@ -63,7 +65,7 @@ class CockpitView():
            self.screen,
            pos=world_pos,
            size=world_size,
-           frame=imageLoad('%s/skin/Frame_Rect600x300.png'%folder),
+           frame=imageLoad('%s/skin/Frame_Rect900x300.png'%folder),
            folder=os.path.join(folder,"display/")
            )
 
@@ -72,6 +74,12 @@ class CockpitView():
                                              rollToDeg=180/pi, pitchToDeg=180/pi)
         self.alt     = ALT.AltMeter( self.screen, pos=alt_pos, size=alt_size)    
         self.mach    = MACH.MachMeter( self.screen, pos=mach_pos, size=mach_size )
+        self.minimap = MAP.Map( screen, pos=minimap_pos, size=minimap_size,
+                                kp = 0.9,
+                                bodyImage=imageLoad("%s/skin/Frame_Rect.png" % path),
+                                mapImage=imageLoad("%s/skin/Grid_White300x300.png" % path),
+                                markerImage=imageLoad("%s/skin/f16_icon.png" % path),
+                                )
         self.turn    = TC.TurnCoord( self.screen, pos=turn_pos, size=turn_size,
                                      turnRateToDeg=180/pi, #< 360 deg in 2 minutes should result in 20 deg
                                      slipToDeg=1.0)
@@ -143,10 +151,11 @@ class CockpitView():
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
         self.mach.update( ins.mach )
+        self.minimap.update(x=-ins.east/100, y=-ins.north/100, deg=ins.azimuth)
         self.vsi.update(  60*ins.vel_up/1000 )
         self.head.update( ins.azimuth, ins.azimuth )
         self.airSpd.update( speed_knots )
-        self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd)
+        self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd*20)
 
     def draw(self):
         """Draw all the dials. The update method should be called before to update all gauges"""
@@ -157,6 +166,7 @@ class CockpitView():
         self.turn.draw()
         self.alt.draw()
         self.mach.draw()
+        self.minimap.draw()
         self.vsi.draw()
         self.head.draw()
         self.airSpd.draw()
@@ -175,7 +185,7 @@ if __name__ == "__main__":
 
     # Initialise screen.
     BG_color = COLOR.DARK
-    screen_size=(600,600)
+    screen_size=(900,600)
     init()
     screen = getScreen(screen_size)
     fillScreen( screen, COLOR.WHITE )

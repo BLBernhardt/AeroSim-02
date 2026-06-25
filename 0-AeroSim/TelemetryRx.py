@@ -89,6 +89,8 @@ class Data():
                 self.data.ctrls.Aileron_Cmd  = 0.9*roll
                 self.data.ctrls.Rudder_Cmd   = cmds.rudderCmd_d
                 self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
+                cmds.lElevonCmd_d = 25*( roll +elev)
+                cmds.rElevonCmd_d = 25*(-roll +elev)
 
                 ### 6DOF MODEL
                 self.navionPhysics()
