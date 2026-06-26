@@ -11,6 +11,7 @@ from GSOF_Cockpit.GraphicsLib import getMouse
 
 from bus.BusINS import *
 from bus.BusFcsCmds import *
+#from flightmodel_ut import AeroModel, Controls
 from flightmodel import AeroModel, Controls
 
 from math import pi
@@ -72,8 +73,8 @@ class Data():
             ### FLIGHT CONTROLS AND THROTTLE
             m_data.mousePos_Z1 = m_data.mousePos
             m_data.mousePos = (getMouse())["pos"]
-            roll = -(m_data.mousePos[0]/self.scrSize[0] -0.5)
-            elev = -(m_data.mousePos[1]/self.scrSize[1] -0.5)
+            roll = -2*(m_data.mousePos[0]/self.scrSize[0] -0.5) #< Stick lift is positive
+            elev = -2*(m_data.mousePos[1]/self.scrSize[1] -0.5) #< Stick up is positive
             rud  = -0.2*roll
             sb   = 0.5
 
@@ -140,21 +141,21 @@ class Data():
         ins = m_data.ins
         #mdl.attitude.print()
         ins.roll    =  radToDeg*mdl.attitude.roll_r
-        ins.pitch   =  radToDeg*mdl.attitude.pitch_r
+        ins.pitch   = -radToDeg*mdl.attitude.pitch_r
         ins.azimuth = -radToDeg*mdl.attitude.yaw_r
 
         #mdl.position.print()
         ins.north      =  mdl.position.x
         ins.east       =  mdl.position.y
-        ins.height     = -mdl.position.z
+        ins.height     =  mdl.position.z
 
         ins.vel_north  =  mdl.Ve.x #airSpeed*math.sin(ins.azimuth)
         ins.vel_east   =  mdl.Ve.y #airSpeed**math.cos(ins.azimuth)
-        ins.vel_up     = -mdl.Ve.z
+        ins.vel_up     =  mdl.Ve.z
 
-        ins.forwardAcc =  mdl.A.x
-        ins.rightAcc   =  mdl.A.y
-        ins.upAcc      = -mdl.A.z
+        ins.forwardAcc =  mdl.Ab.x
+        ins.rightAcc   =  mdl.Ab.y
+        ins.upAcc      =  mdl.Ab.z
 
         airSpeed = mdl.Vb.mag()
         ins.mach = airSpeed*0.002

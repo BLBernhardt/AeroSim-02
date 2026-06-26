@@ -26,17 +26,15 @@ class AeroModel():
         self.W = Vec_pqr()              #< p, q, r (xyz) angular velocity
         self.T = Vec_pqr()              #< Torque
 
-        self.position = Vec_xyz(0.0, 0.0, -altInit_m) 
+        self.position = Vec_xyz(0.0, 0.0, altInit_m) 
         self.Vb = Vec_xyz(speed_fps, 0.0, 0.0) #< u, v, w  linear Velocity 
         self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
-        self.A = Vec_xyz() #< Acceleration (u, v, w)
-        self.F = Vec_xyz() #< Force (forward, right, down )
+        self.Ab = Vec_xyz() #< Acceleration (u, v, w)
+        self.Fb = Vec_xyz() #< Force (forward, right, down )
     
         self.alpha_r = 0.0  #< Angle of attack 
         self.beta_r = 0.0   #< Sideslip angle 
         self.Lift, self.Drag = (0.0, 0.0)
-
-        self.Wind = Vec_xyz()     #< wind vector [m/s] 
 
         self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
         self.Thrust = 0.0 
@@ -60,7 +58,7 @@ class AeroModel():
         self.time += dt
         
         ##================ Controls ================================================================================================
-        self.elevatorCmd  = -(ctrls.Elevator_Cmd * self.params.ELV_MAX_ANG_D ) #< Pitch stick y axis range -1.0 to 1.0
+        self.elevatorCmd  = (ctrls.Elevator_Cmd * self.params.ELV_MAX_ANG_D ) #< Pitch stick y axis range -1.0 to 1.0
         self.elevatorCmd += self.elevatorTrim_deg
         self.elevatorCmd *= DEGtoRAD
 
@@ -145,13 +143,12 @@ class AeroModel():
         ##===============================================================   
 
         ## X Axis
-        self.F.x = self.Lift * sin(self.alpha_r)\
+        self.Fb.x = self.Lift * sin(self.alpha_r)\
                   -self.Drag * cos(self.alpha_r)\
                   +self.Thrust\
-                  -self.Weight * sin(self.attitude.pitch_r)
-        self.A.x = self.F.x / self.params.MASS  
-        self.Vb.x += self.A.x * dt #< Next state
-        #print(self.Thrust)
+                  +self.Weight * sin(self.attitude.pitch_r)
+        self.Ab.x = self.Fb.x / self.params.MASS  
+        self.Vb.x += self.Ab.x * dt #< Next state
 
         ## Y Axis
         Cy = Cyb * self.beta_r\
@@ -159,24 +156,35 @@ class AeroModel():
              +Cyp * Wp * self.Vb.z / (2*Vabs)\
              +Cyr * Wr * self.Vb.z / (2*Vabs)
 
-        self.F.y = qS * Cy
-        self.A.y = self.F.y / self.params.MASS\
+        self.Fb.y = qS * Cy
+        self.Ab.y = self.Fb.y / self.params.MASS\
                   +Wr * self.Vb.x\
                   -Wp * self.Vb.z\
                   +self.params.G * cos(self.attitude.pitch_r) * sin(self.attitude.roll_r)
-        self.Vb.y += self.A.y * dt #< Next state
+        self.Vb.y += self.Ab.y * dt #< Next state
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
-        self.F.z = self.Lift * cos(self.alpha_r)\
+        self.Fb.z = self.Lift * cos(self.alpha_r)\
                   -self.Drag * sin(self.alpha_r)\
                   -self.Weight * cos(self.attitude.roll_r) * cos(self.attitude.pitch_r)
-        self.F.z *= -1
-        self.A.z = self.F.z / self.params.MASS
-        self.Vb.z += self.A.z * dt #< Next state
+        self.Fb.z *= -1
+        self.Ab.z = self.Fb.z / self.params.MASS
+        self.Vb.z = self.Ab.z * dt #< Next state
         ##=======================================================================================================================   
 
         ## Angular velocity integration in body coordinates
         self.attitude.addW(self.W, dt)
+
+##        ## V earth to body
+##        Vb = Vec_xyz(*MxV(self.attitude.inv(), self.Ve.getVector()))
+##
+##        ## Apply body accel
+##        self.Vb.x += Vb.x +self.Ab.x*dt
+##        self.Vb.y += Vb.y +self.Ab.y*dt
+##        self.Vb.z += Vb.y +self.Ab.z*dt
+##
+##        ## Body to earth transform
+##        self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
 
         ## Body to earth transform
         self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
@@ -196,8 +204,8 @@ class AeroModel():
         Pos = self.position
         s += "X-Forward; Y-Right; Z-Down\n"
         s += "Position    :, %1.2f, %1.2f, %1.2f\n"%(   Pos.x,    Pos.y,    Pos.z)
-        s += "Velosity    :, %s1.2f, %1.2f, %1.2f\n"%(self.V.x, self.V.y, self.V.z)
-        s += "Accel       :, %1.2f, %1.2f, %1.2f\n"%(self.A.x, self.A.y, self.A.z)
+        s += "Velosity    :, %s1.2f, %1.2f, %1.2f\n"%(self.Vb.x, self.Vb.y, self.Vb.z)
+        s += "Accel       :, %1.2f, %1.2f, %1.2f\n"%(self.Ab.x, self.Ab.y, self.Ab.z)
         s += "Ele,Ail,RudA:, %1.2f, %1.2f, %1.2f\n"%(self.elevatorCmd*RADtoDEG, self.aileronCmd*RADtoDEG, self.rudderCmd*RADtoDEG)
         s += "Lift,Drag   :, %1.2f, %1.2f\n"%(self.Lift, self.Drag)
         s += "AOA,Beta    :, %1.2f, %1.2f\n"%(self.alpha_r, self.beta_r)
