@@ -194,7 +194,10 @@ class Attitude():
         self.dcm = MxM(self.dcm, WxDT)
         self._normalize()._updateAngles()
         return self
-        
+
+    def inv(self) -> list:
+        return T(self.dcm)
+    
     def _normalize(self):
         temporary = matrix(3,3)
         error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
@@ -217,15 +220,15 @@ class Attitude():
         return self
 
     def _updateAngles(self) -> None:
-        R11 = self.dcm[0][0]
-        R21 = self.dcm[1][0]
-        R31 = self.dcm[2][0]
-        R32 = self.dcm[2][1]
-        R33 = self.dcm[2][2]
-        self.yaw_r = atan2(R21,R11)
-        #print(R31)
+        dcm = self.dcm
+        R11 = dcm[0][0]
+        R21 = dcm[1][0]
+        R31 = min(1, max(-1,dcm[2][0]))
+        R32 = dcm[2][1]
+        R33 = dcm[2][2]
+        self.yaw_r   = atan2(R21,R11)
         self.pitch_r = asin(-R31)
-        self.roll_r = atan2(R32,R33)
+        self.roll_r  = atan2(R32,R33)
 
     def __str__(self) -> str:
         s = ""
@@ -319,6 +322,22 @@ def MxM( A, B ) -> list:
                 matrixOut[y][x] += A[y][i]*B[i][x]
     return matrixOut
 
+def getCol(M, col) -> list:
+    """ Returns a copy of column 'col' from the matrix 'M' """
+    rows = len(M)
+    V = [0]*rows
+    for i, row in enumerate(M):
+        V[i] = row[col]
+    return V
+
+def T(M) -> list:
+    """ Returns the transposed Matrix of M """
+    cols = len(M[0])
+    O = [0]*cols
+    for i in range(0,cols):
+        O[i] = getCol(M,i)
+    return O
+
 ##def DCM_ZYX(a, b, c) -> list:
 ##    """ a is around Z, b is around Y, and c is around X"""
 ##    ca = cos(a)
@@ -346,7 +365,7 @@ def MxM( A, B ) -> list:
 ##    c = atan(R32/R33)
 ##    return (a,b,c)
     
-def body_to_earth_M( body, q ) -> Vec_xyz: 
+def body_to_earth_M( body, q ) -> Vec_xyz:
     """Rotate vector by a quaternion using matrix math"""
     x = q.x
     y = q.y
@@ -385,4 +404,10 @@ if __name__ == "__main__":
     Vec_xyz(1.1, 2.2, 3.3).print()
     Vec_pqr(1.1, 2.2, 3.3).print()
     Qtrn(1.1, 2.2, 3.3, 4.4).print()
+    M = [[1,2,3],
+         [4,5,6],
+         [7,8,9]
+         ]
+    printM(M)
+    printM(T(M))
     
