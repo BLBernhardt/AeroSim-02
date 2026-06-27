@@ -38,36 +38,36 @@ class F16(Assembly):
 
         self.plane = Object(
             filename="%s/objects/f16.stl"%folder, color=BLUE, name="F16")\
-            .setCenter(scale=1.0, method="arithCenter")
+            .setCenter(rotate=(0,pi,0), scale=1.0, method="arithCenter")
         
         self.plume = objects=Object(
            filename="%s/objects/Plume.json"%folder, color=RED)\
-           .setCenter(scale=30, rotate=(0, 180*degToRad, 0))
+           .setCenter(scale=30, rotate=(0, 0, 0))
         plume = Assembly(objects=(self.plume,))   
-        plume.translate(0, 0, -90).setOrigin()
+        plume.translate(0, 0, +90).setOrigin()
 
         self.nw = Object(
            filename="%s/objects/LandingGear.json"%folder, color=BLACK, name="NW")
         self.nwow = Object(
            filename="%s/objects/Spark.json"%folder, color=YELLOW, name="NWOW")
         nw = Assembly(objects=(self.nw, self.nwow), name="NW-Assy")\
-           .translate(0, -2, 0).scale(8).translate(0, -30, 80).setOrigin()           
+           .translate(0, -2, 0).scale(8).translate(0, -30, -80).setOrigin()           
 
         self.lw = Object(
            filename="%s/objects/LandingGear.json"%folder, color=BLACK, name="LW")
         self.lwow = Object(
            filename="%s/objects/Spark.json"%folder, color=YELLOW)
         lw = Assembly(objects=(self.lw, self.lwow), name="LW-Assy")\
-           .translate(0, -2, 0).rotate(x=0, y=0, z=degToRad*15)\
-           .scale(8).translate(14, -30, 0).setOrigin()           
+           .translate(0, -2, 0).rotate(x=0, y=0, z=-degToRad*15)\
+           .scale(8).translate(-14, -30, 0).setOrigin()           
 
         self.rw = Object(
            filename="%s/objects/LandingGear.json"%folder, color=BLACK, name="RW")
         self.rwow = Object(
            filename="%s/objects/Spark.json"%folder, color=YELLOW)
         rw = Assembly(objects=(self.rw, self.rwow), name="RW-Assy")\
-           .translate(0, -2, 0).rotate(x=0, y=0, z=-degToRad*15)\
-           .scale(8).translate(-14, -30, 0).setOrigin()           
+           .translate(0, -2, 0).rotate(x=0, y=0, z=degToRad*15)\
+           .scale(8).translate(14, -30, 0).setOrigin()           
 
         self.gears = Assembly(objects=(nw, rw,lw))
         super().__init__(objects=(axis, self.plane, plume, self.gears))

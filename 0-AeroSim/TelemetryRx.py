@@ -12,6 +12,7 @@ from GSOF_Cockpit.GraphicsLib import getMouse
 from bus.BusINS import *
 from bus.BusFcsCmds import *
 from flightmodel import AeroModel, Controls
+from flightmodel_ut import AeroModel as TestModel
 
 from math import pi
 radToDeg = 180/pi
@@ -51,6 +52,7 @@ class Data():
         self.dt = 0.1
         self.data = Buses()
         self.navion = AeroModel(dt=0.05, altInit_m=500.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
+        self.test   = TestModel(dt=0.05, altInit_m=500.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
 
     def getData(self, test=False):
         """Generate and return new set of data"""
@@ -64,97 +66,79 @@ class Data():
         m_data = self.data
         cmds = m_data.cmds
         
-        if test != False:
-            # Interactive test mode (ARCADE)
-            m_data.time += self.dt
-            keys = pygame.key.get_pressed()
+        # Interactive test mode
+        m_data.time += self.dt
+        keys = pygame.key.get_pressed()
 
-            ### FLIGHT CONTROLS AND THROTTLE
-            m_data.mousePos_Z1 = m_data.mousePos
-            m_data.mousePos = (getMouse())["pos"]
-            roll = -(m_data.mousePos[0]/self.scrSize[0] -0.5)
-            elev = -(m_data.mousePos[1]/self.scrSize[1] -0.5)
-            rud  = -0.2*roll
-            sb   = 0.5
+        ### FLIGHT CONTROLS AND THROTTLE
+        m_data.mousePos_Z1 = m_data.mousePos
+        m_data.mousePos = (getMouse())["pos"]
+        roll = 2*(m_data.mousePos[0]/self.scrSize[0] -0.5) #< Stick left is negative
+        elev = -2*(m_data.mousePos[1]/self.scrSize[1] -0.5) #< Stick up is negative
+        rud  = -0.2*roll
+        sb   = 0.5
 
-            rud = cmds.rudderCmd_d -0.01*(keys[pygame.K_z] -keys[pygame.K_c])
-            rud *= (1 -keys[pygame.K_x])
-            cmds.rudderCmd_d = max(-1, min(1, rud))
+        rud = cmds.rudderCmd_d -0.01*(keys[pygame.K_z] -keys[pygame.K_c])
+        rud *= (1 -keys[pygame.K_x])
+        cmds.rudderCmd_d = max(-1, min(1, rud))
 
-            throttle = cmds.throttleCmd +0.01*(keys[pygame.K_q] -keys[pygame.K_a])
-            cmds.throttleCmd = max(-1, min(1, throttle))
+        throttle = cmds.throttleCmd +0.02*(keys[pygame.K_q] -keys[pygame.K_a])
+        cmds.throttleCmd = max(0, min(1, throttle))
 
-            if test == "navion":
-                self.data.ctrls.Elevator_Cmd = -0.9*elev
-                self.data.ctrls.Aileron_Cmd  = 0.9*roll
-                self.data.ctrls.Rudder_Cmd   = cmds.rudderCmd_d
-                self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
-                cmds.lElevonCmd_d = 25*( roll +elev)
-                cmds.rElevonCmd_d = 25*(-roll +elev)
+        self.data.ctrls.Elevator_Cmd = -0.9*elev
+        self.data.ctrls.Aileron_Cmd  = 0.9*roll
+        self.data.ctrls.Rudder_Cmd   = cmds.rudderCmd_d
+        self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
+        cmds.lElevonCmd_d = 25*(-roll +elev)
+        cmds.rElevonCmd_d = 25*(+roll +elev)
 
-                ### 6DOF MODEL
-                self.navionPhysics()
-                
-            elif test == "arcade":
-                rudder     = -2*roll
-                speedbrake =  60*0.5
-                cmds.lElevonCmd_d = 45*( roll +elev)
-                cmds.rElevonCmd_d = 45*(-roll +elev)
-                cmds.rudderCmd_d  = rudder
-                cmds.speedbrakeCmd_d = speedbrake
-                #cmds.throttleCmd = cmds.throttleCmd
+        ### 6DOF MODEL
+        self.physics(test)
 
-                ### 6DOF MODEL
-                self.arcadePhysics()
+        ### LANDING GEARS
+        gearsDown = cmds.gearExtendCmd_b +(keys[pygame.K_b] -keys[pygame.K_g])
+        cmds.gearExtendCmd_b = max(0, min(1, gearsDown))
 
-            else:
-                print("Incorrect test mode %s"%test)
+        ### WEIGHT ON WHEELS
+        m_data.wow.left  = bool(keys[pygame.K_1])
+        m_data.wow.nose  = bool(keys[pygame.K_2])
+        m_data.wow.right = bool(keys[pygame.K_3])
 
-            ### LANDING GEARS
-            gearsDown = cmds.gearExtendCmd_b +(keys[pygame.K_b] -keys[pygame.K_g])
-            cmds.gearExtendCmd_b = max(0, min(1, gearsDown))
+        ### Weight On Wheels (WOW) detection
+        m_data.wow.left   |= (m_data.ins.height < 0.2) and (m_data.ins.roll < 0.5)
+        m_data.wow.right  |= (m_data.ins.height < 0.2) and (m_data.ins.roll > -0.5)
+        m_data.wow.nose   |= (m_data.ins.height < 0.2) and (m_data.ins.pitch < 0.5)
 
-            ### WEIGHT ON WHEELS
-            m_data.wow.left  = bool(keys[pygame.K_1])
-            m_data.wow.nose  = bool(keys[pygame.K_2])
-            m_data.wow.right = bool(keys[pygame.K_3])
-
-            ### Weight On Wheels (WOW) detection
-            m_data.wow.left   |= (m_data.ins.height < 0.1) and (m_data.ins.roll < 0.5)
-            m_data.wow.right  |= (m_data.ins.height < 0.1) and (m_data.ins.roll > -0.5)
-            m_data.wow.nose   |= (m_data.ins.height < 0.1) and (m_data.ins.pitch < 0.5)
-
-        else:
-            # Telemetry mode (PLAYBACK)
-            print("Playback mode isn't supported yet")
         return m_data
 
-    def navionPhysics(self) -> None:
-        m_data = self.data
-        ins = m_data.ins
-        cmds = m_data.cmds
-        mdl = self.navion
-        mdl.step(m_data.ctrls, dt=self.dt) #, dt=self.dt)
+    def physics(self, mode) -> None:
+        if mode == "arcade":
+            mdl = self.test
+        elif mode == "navion":
+            mdl = self.navion
+        else:
+            mdl = None
+    
+        mdl.step(self.data.ctrls, dt=self.dt)
 
-
-        ins = m_data.ins
-        #mdl.attitude.print()
-        ins.roll    =  radToDeg*mdl.attitude.roll_r
-        ins.pitch   =  radToDeg*mdl.attitude.pitch_r
-        ins.azimuth = -radToDeg*mdl.attitude.yaw_r
+        ### Update instrumentation
+        ins = self.data.ins
+        ins.roll    = radToDeg*mdl.attitude.roll_r
+        ins.pitch   = radToDeg*mdl.attitude.pitch_r
+        ins.azimuth = radToDeg*mdl.attitude.yaw_r
 
         #mdl.position.print()
         ins.north      =  mdl.position.x
         ins.east       =  mdl.position.y
-        ins.height     = -mdl.position.z
+        ins.height     =  -mdl.position.z
 
-        ins.vel_north  =  mdl.Ve.x #airSpeed*math.sin(ins.azimuth)
-        ins.vel_east   =  mdl.Ve.y #airSpeed**math.cos(ins.azimuth)
-        ins.vel_up     = -mdl.Ve.z
+        ins.vel_north  =  mdl.Ve.x
+        ins.vel_east   =  mdl.Ve.y
+        ins.vel_up     =  -mdl.Ve.z
 
-        ins.forwardAcc =  mdl.A.x
-        ins.rightAcc   =  mdl.A.y
-        ins.upAcc      = -mdl.A.z
+        ins.forwardAcc =  mdl.Ab.x
+        ins.rightAcc   =  mdl.Ab.y
+        ins.upAcc      =  -mdl.Ab.z
 
         airSpeed = mdl.Vb.mag()
         ins.mach = airSpeed*0.002
@@ -168,35 +152,3 @@ class Data():
                 mdl.Vb.z = 0.0
                 mdl.W.p = 0.0
                 mdl.W.q = 0.0
-                
-    def arcadePhysics(self) -> None:
-        m_data = self.data
-        ins = m_data.ins
-        cmds = m_data.cmds
-
-        ### ARCADE "6DOF"
-        thrustFactor = cmds.throttleCmd
-        fcsRoll  = -0.5*(cmds.lElevonCmd_d -cmds.rElevonCmd_d)
-        fcsPitch = 0.5*(cmds.lElevonCmd_d +cmds.rElevonCmd_d)
-        noseUpTorque   = -fcsPitch*thrustFactor
-        rollLeftTorque = fcsRoll*thrustFactor
-        ins.roll  = rollLeftTorque
-        ins.pitch = noseUpTorque
-        ins.azimuth += 0.01*m_data.ins.roll
-        ins.height  += 0.02*m_data.ins.pitch
-        ins.height -= (1-thrustFactor) #< Sink vs "speed"
-        ins.vel_up = (ins.height -self.height_Z1) / self.dt
-        ins.vel_north = 800*thrustFactor*math.sin(ins.azimuth)
-        ins.vel_east  = 800*thrustFactor*math.cos(ins.azimuth)
-        self.height_Z1  = ins.height  #< VSI
-        ins.mach = 1.5*thrustFactor   #< MACH
-        cmds.gearExtendCmd_b |= int(ins.height < 100) #< Gears down if below 100 m
-        ins.upAcc = 9.81 +0.5*ins.vel_up
-        ins.forwardAcc = 0.0
-        ins.rightAcc = 2*ins.roll
-        
-        ### Ground collision detection
-        if ins.height <= 0:
-            ins.height = 0.0
-            if ins.pitch < 0.0:
-                ins.pitch = 0.0

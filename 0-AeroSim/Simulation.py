@@ -111,10 +111,11 @@ class CockpitView():
            speed_knots = 900
 
         heading = pi*ins.azimuth/180
+        pitch   = pi*ins.pitch/180
+        roll    = pi*ins.roll/180
+
         mToFt = 3.28
         alt_ft = mToFt*ins.height
-        pitch = pi*ins.pitch/180
-        roll = pi*ins.roll/180
 
         dt = time -self.time_Z1
         if dt > 0.005:
@@ -136,8 +137,10 @@ class CockpitView():
         rudderCmd = cmds.rudderCmd_d
         wow  = newData.wow
 
+        ### MODEL TO 3D-GRAPHICS
+        ### X-FOWARD, Y-RIGHT, Z-DOWN TO X-RIGHT, Z-UP
         planeState = PlaneState(north=0, east=0, up=alt_ft,
-                                heading_d=heading*180/pi, pitch_d=pitch*180/pi, roll_d=roll*180/pi,
+                                heading_d=-heading*180/pi, pitch_d=pitch*180/pi, roll_d=-roll*180/pi,
                                 throttle=throttle,
                                 gearsDown_b=cmds.gearExtendCmd_b,
                                 wowNose_b=wow.nose,
@@ -151,8 +154,8 @@ class CockpitView():
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
         self.mach.update( ins.mach )
-        self.minimap.update(x=-ins.east/100, y=-ins.north/100, deg=ins.azimuth)
-        self.vsi.update(  60*ins.vel_up/1000 )
+        self.minimap.update(x=ins.east/100, y=-ins.north/100, deg=ins.azimuth)
+        self.vsi.update( 60*ins.vel_up/1000 )
         self.head.update( ins.azimuth, ins.azimuth )
         self.airSpd.update( speed_knots )
         self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd*20)
@@ -196,7 +199,7 @@ if __name__ == "__main__":
     data = Data(screen_size)
     clock = Clock()
 
-    mode = "navion" # False, "navion", "arcade"
+    mode = "arcade" # False, "navion", "arcade"
 
     help(mode)
     while True:
