@@ -49,14 +49,14 @@ class F16(Assembly):
         self.nw = Object(
            filename="%s/objects/LandingGear.json"%folder, color=BLACK, name="NW")
         self.nwow = Object(
-           filename="%s/objects/Spark.json"%folder, color=YELLOW, name="NWOW")
+           filename="%s/objects/Spark.json"%folder, color=YELLOW, name="NWOW").setCenter(rotate=(0,pi,0))
         nw = Assembly(objects=(self.nw, self.nwow), name="NW-Assy")\
            .translate(0, -2, 0).scale(8).translate(0, -30, -80).setOrigin()           
 
         self.lw = Object(
            filename="%s/objects/LandingGear.json"%folder, color=BLACK, name="LW")
         self.lwow = Object(
-           filename="%s/objects/Spark.json"%folder, color=YELLOW)
+           filename="%s/objects/Spark.json"%folder, color=YELLOW).setCenter(rotate=(0,pi,0))
         lw = Assembly(objects=(self.lw, self.lwow), name="LW-Assy")\
            .translate(0, -2, 0).rotate(x=0, y=0, z=-degToRad*15)\
            .scale(8).translate(-14, -30, 0).setOrigin()           
@@ -64,7 +64,7 @@ class F16(Assembly):
         self.rw = Object(
            filename="%s/objects/LandingGear.json"%folder, color=BLACK, name="RW")
         self.rwow = Object(
-           filename="%s/objects/Spark.json"%folder, color=YELLOW)
+           filename="%s/objects/Spark.json"%folder, color=YELLOW).setCenter(rotate=(0,pi,0))
         rw = Assembly(objects=(self.rw, self.rwow), name="RW-Assy")\
            .translate(0, -2, 0).rotate(x=0, y=0, z=degToRad*15)\
            .scale(8).translate(14, -30, 0).setOrigin()           
