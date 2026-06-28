@@ -5,6 +5,7 @@
 ##==============================================================================
 
 from mathLib import *
+from Solver_6DOF import Solver_6DOF
 
 class Controls():
     def __init__(self, Elevator_Cmd, Aileron_Cmd, Rudder_Cmd, Throttle_Cmd, GearExtend_Cmd):
@@ -28,6 +29,18 @@ class AeroModel():
         self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
         self.Ab = Vec_xyz() #< Acceleration (u, v, w)
         self.Fb = Vec_xyz() #< Force (forward, right, down )
+
+        self.Weight = 1 #weight_lbs  #< Weight lbs : mass (lbs/G slugs )
+
+        self.solver = Solver_6DOF(
+            position = self.position, #< All values are passed by reference
+            Vb = self.Vb,
+            Ve = self.Ve,
+            mass = (self.Weight,),
+            attitude = self.attitude,
+            Wb = self.W,
+            inertia = Vec_xyz(0.025,0.05,0.05)
+            )
     
         self.elevatorCmd = 0.0 #< Elevator deflection (+/-1)
         self.aileronCmd  = 0.0 #< Aileron deflection (+/-1)
@@ -38,8 +51,6 @@ class AeroModel():
         dt = self.dt if dt==None else dt
         self.time += dt
         
-        Wp, Wq, Wr = self.W.p, self.W.q, self.W.r #< Current state
-
         self.elevatorCmd = ctrls.Elevator_Cmd
         self.aileronCmd  = ctrls.Aileron_Cmd
         self.rudderCmd   = ctrls.Rudder_Cmd
@@ -70,36 +81,8 @@ class AeroModel():
         ### 6-DOF SOLVER
         _6DOF_ACTIVE = True
         if _6DOF_ACTIVE:
-            ## Angular velocity integration in body coordinates
-            Ap  = self.T.p / 1.0 
-            #self.W.p += Ap * dt #< Next state
-            self.W.p = Ap #< Next state
-            Aq = self.T.q / 1.0     
-            #self.W.q += Aq * dt #< Next state
-            self.W.q = Aq #< Next state
-            Ar  = self.T.r / 1.0
-            #self.W.r += Ar * dt #< Next state
-            self.W.r = Ar #< Next state
-            self.attitude.addW(self.W, dt)
-
-            ## V earth to body
-            Vb = Vec_xyz(self.Vb.x, self.Vb.y, self.Vb.z)
-
-            ## Apply body accel
-            self.Ab.x = (self.Fb.x/1.0)
-            self.Ab.z = (self.Fb.z/1.0)
-            self.Ab.z = (self.Fb.z/1.0)
-            self.Vb.x = Vb.x +self.Ab.x*dt
-            self.Vb.y = Vb.y +self.Ab.y*dt
-            self.Vb.z = Vb.y +self.Ab.z*dt
-
-            ## Body to earth transform
-            self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
-
-            ## Apply velocity to position
-            self.position.x += self.Ve.x * dt
-            self.position.y += self.Ve.y * dt
-            self.position.z += self.Ve.z * dt #< Z axis is pointing down
+            self.W.p, self.W.q, self.W.r = 0,0,0 
+            self.solver.step(self.Fb, self.T, dt)
         else:
             self.attitude.roll_r  = 6.28*self.W.p
             self.attitude.pitch_r = 6.28*self.W.q

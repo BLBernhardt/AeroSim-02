@@ -150,7 +150,7 @@ class CockpitView():
         self.world.update( time, planeState, worldState)
         
         self.horizon.update( roll, pitch )
-        self.turn.update( self.turnRate_rps, sideslip )
+        self.turn.update( -self.turnRate_rps, sideslip )
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
         self.mach.update( ins.mach )

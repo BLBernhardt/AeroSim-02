@@ -122,11 +122,6 @@ class F16(Assembly):
            self.gears.scale(1.0)
 
     def setWOW(self, nose, left, right) -> None:
-        time = int(self.time*10)
-        blink = bool(time&0b010)
-        self.nwow.rotate(x=0, y=0, z=4*self.time)\
-                 .scale(int(nose and blink))
-        self.lwow.rotate(x=0, y=0, z=4*self.time)\
-                 .scale(int(left and blink))
-        self.rwow.rotate(x=0, y=0, z=4*self.time)\
-                 .scale(int(right and blink))
+        self.nwow.rotate(x=0, y=0, z=4*self.time).scale(int(nose))
+        self.lwow.rotate(x=0, y=0, z=4*self.time).scale(int(left))
+        self.rwow.rotate(x=0, y=0, z=4*self.time).scale(int(right))

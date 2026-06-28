@@ -7,6 +7,7 @@
 from math import sin, cos, atan
 from mathLib import *
 import NavionAircraftParameters as airMdl
+from Solver_6DOF import Solver_6DOF
 
 class Controls():
     def __init__(self, Elevator_Cmd, Aileron_Cmd, Rudder_Cmd, Throttle_Cmd, GearExtend_Cmd):
@@ -31,12 +32,24 @@ class AeroModel():
         self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
         self.Ab = Vec_xyz() #< Acceleration (u, v, w)
         self.Fb = Vec_xyz() #< Force (forward, right, down )
-    
+
+        self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
+
+        self.solver = Solver_6DOF(
+            position = self.position, #< All values are passed by reference
+            Vb = self.Vb,
+            Ve = self.Ve,
+            mass = (self.Weight,),
+            attitude = self.attitude,
+            Wb = self.W,
+            inertia = Vec_xyz(self.params._Ixx,
+                              self.params._Iyy,
+                              self.params._Izz)
+            )
         self.alpha_r = 0.0  #< Angle of attack 
         self.beta_r = 0.0   #< Sideslip angle 
         self.Lift, self.Drag = (0.0, 0.0)
 
-        self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
         self.Thrust = 0.0 
 
         self.elevatorCmd = 0.0    #< Elevator deflection (radians)
@@ -77,9 +90,7 @@ class AeroModel():
         ## Update the airspeed 
         Vabs = self.Vb.mag()
 
-        ### Where is flight path ??
-        ## V earth to body
-        #self.Vb = Vec_xyz(*MxV(self.attitude.inv(), self.Ve.getVector()))
+        self.Vb = Vec_xyz(*MxV(self.attitude.inv(), self.Ve.getVector()))
         if abs(self.Vb.x) < 1.0:
             self.alpha_r = 0.0     #< No AOA and Sideslip at low speed
             self.beta_r  = 0.0
@@ -142,7 +153,6 @@ class AeroModel():
         self.Fb.x +=  self.Lift * sin(self.alpha_r)
         self.Fb.x += -self.Drag * cos(self.alpha_r)
         self.Fb.x += -self.Weight * sin(self.attitude.pitch_r) #< Forward force due to gravity and pitch angle
-        self.Ab.x = self.Fb.x / self.params.MASS  
 
         ## Y Axis
         Cy = self.params.CY_B * self.beta_r
@@ -155,32 +165,16 @@ class AeroModel():
         self.Ab.y += Wr * self.Vb.x #< Side force due to roll rate
         self.Ab.y += Wp * self.Vb.z #< Side force due to pitch rate
         self.Ab.y += self.params.G * cos(self.attitude.pitch_r) * sin(self.attitude.roll_r) #< Side force due to gravity
+        self.Fb.y = self.Ab.y * self.params.MASS
 
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
         self.Fb.z =   self.Lift * cos(self.alpha_r)
         self.Fb.z += -self.Drag * sin(self.alpha_r)
         self.Fb.z += -self.Weight * cos(self.attitude.roll_r) * cos(self.attitude.pitch_r)
         self.Fb.z *= -1
-        self.Ab.z = self.Fb.z / self.params.MASS
         ##=======================================================================================================================   
 
-        ##========================== 6-DOF SOLVER ===============================================================================   
-        ## Angular velocity integration in body coordinates
-        self.W.p += (self.T.p / self.params._Ixx) * dt #< Next state
-        self.W.q += (self.T.q / self.params._Iyy) * dt #< Next state
-        self.W.r += (self.T.r / self.params._Izz) * dt #< Next state
-        self.attitude.addW(self.W, dt)
-
-        ## Body to earth transform
-        self.Vb.x += self.Ab.x * dt #< Next state
-        self.Vb.y += self.Ab.y * dt #< Next state
-        self.Vb.z = self.Ab.z * dt #< Next state
-        self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
-
-        ## Position in earth coordinates
-        self.position.x += self.Ve.x * dt
-        self.position.y += self.Ve.y * dt
-        self.position.z += self.Ve.z * dt #< Z axis is pointing down
+        self.solver.step(self.Fb, self.T, dt)
 
         print("AOA,Beta: %1.2f, %1.2f"%(self.alpha_r*RADtoDEG, self.beta_r*RADtoDEG))
         #print("Torque : %s"%(self.T))
