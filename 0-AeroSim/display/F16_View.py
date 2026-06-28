@@ -63,7 +63,7 @@ class F16_View():
            .setOrigin()
         ground = Assembly(objects=(net, axis), name="Ground").translate(-200, 0, 0).setOrigin()    
         self.world = Assembly(objects=(ground, self.plane), name="World")    
-        self.world.rotate(0, PI, 0).translate(0,0,-600).setOrigin()
+        self.world.rotate(0, 0, 0).translate(0,0,-600).setOrigin()
 
         self.model = Model3D(
         screen,
@@ -88,7 +88,7 @@ class F16_View():
         """ """
         self.plane._update(
             north=state.north, east=state.east, up=state.up,
-            heading_d=-state.heading_d, pitch_d=-state.pitch_d, roll_d=state.roll_d,
+            heading_d=state.heading_d, pitch_d=state.pitch_d, roll_d=state.roll_d,
             throttle=state.throttle,
             gearsDown_b=state.gearsDown_b,
             wowNose_b=state.wowNose_b, wowLeft_b=state.wowLeft_b, wowRight_b=state.wowRight_b)

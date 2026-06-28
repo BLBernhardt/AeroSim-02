@@ -73,12 +73,12 @@ class Data():
             ### FLIGHT CONTROLS AND THROTTLE
             m_data.mousePos_Z1 = m_data.mousePos
             m_data.mousePos = (getMouse())["pos"]
-            roll = -2*(m_data.mousePos[0]/self.scrSize[0] -0.5) #< Stick lift is positive
+            roll = 2*(m_data.mousePos[0]/self.scrSize[0] -0.5) #< Stick lift is positive
             elev = -2*(m_data.mousePos[1]/self.scrSize[1] -0.5) #< Stick up is positive
             rud  = -0.2*roll
             sb   = 0.5
 
-            rud = cmds.rudderCmd_d -0.01*(keys[pygame.K_z] -keys[pygame.K_c])
+            rud = cmds.rudderCmd_d +0.01*(keys[pygame.K_z] -keys[pygame.K_c])
             rud *= (1 -keys[pygame.K_x])
             cmds.rudderCmd_d = max(-1, min(1, rud))
 
@@ -90,8 +90,8 @@ class Data():
                 self.data.ctrls.Aileron_Cmd  = 0.9*roll
                 self.data.ctrls.Rudder_Cmd   = cmds.rudderCmd_d
                 self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
-                cmds.lElevonCmd_d = 25*( roll +elev)
-                cmds.rElevonCmd_d = 25*(-roll +elev)
+                cmds.lElevonCmd_d = 25*(-roll +elev)
+                cmds.rElevonCmd_d = 25*( roll +elev)
 
                 ### 6DOF MODEL
                 self.navionPhysics()

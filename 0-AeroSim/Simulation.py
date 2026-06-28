@@ -146,14 +146,14 @@ class CockpitView():
         worldState = WorldState(translate=(0,-alt_ft, 0))
         self.world.update( time, planeState, worldState)
         
-        self.horizon.update( roll, pitch )
+        self.horizon.update( -roll, pitch )
         self.turn.update( self.turnRate_rps, sideslip )
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
         self.mach.update( ins.mach )
-        self.minimap.update(x=-ins.east/100, y=-ins.north/100, deg=ins.azimuth)
+        self.minimap.update(x=ins.east/100, y=-ins.north/100, deg=-ins.azimuth)
         self.vsi.update(  60*ins.vel_up/1000 )
-        self.head.update( ins.azimuth, ins.azimuth )
+        self.head.update( -ins.azimuth, -ins.azimuth )
         self.airSpd.update( speed_knots )
         self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd*20)
 
