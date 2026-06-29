@@ -150,5 +150,6 @@ class Data():
             if ins.pitch < 0.0:
                 mdl.attitude.set( 0,0,mdl.attitude.yaw_r )
                 mdl.Vb.z = 0.0
+                mdl.Ve.z = 0.0
                 mdl.W.p = 0.0
                 mdl.W.q = 0.0

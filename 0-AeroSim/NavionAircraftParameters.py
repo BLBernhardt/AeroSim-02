@@ -18,7 +18,7 @@ class NavionParams():
     RUD_TRIM_D    =  0.0 #< degrees
     RUD_MAX_ANG_D = 20.0 #< degrees
 
-    MAX_THRUST = 360.0  #< Thrust in lbs_F
+    MAX_THRUST = 360.0*2  #< Thrust in lbs_F
     #MAX_THRUST = 1601.36  #< Thrust in Newtons
 
     ALT_INIT    = 5000.0

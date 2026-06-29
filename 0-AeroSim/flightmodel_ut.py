@@ -34,7 +34,6 @@ class AeroModel():
 
         self.solver = Solver_6DOF(
             position = self.position, #< All values are passed by reference
-            Vb = self.Vb,
             Ve = self.Ve,
             mass = (self.Weight,),
             attitude = self.attitude,
@@ -51,6 +50,10 @@ class AeroModel():
         dt = self.dt if dt==None else dt
         self.time += dt
         
+        ## Update the airspeed 
+        self.Vb = Vec_xyz(*MxV(self.attitude.inv(), self.Ve.getVector()))
+        Vabs = self.Vb.mag()
+
         self.elevatorCmd = ctrls.Elevator_Cmd
         self.aileronCmd  = ctrls.Aileron_Cmd
         self.rudderCmd   = ctrls.Rudder_Cmd
@@ -69,20 +72,21 @@ class AeroModel():
         ##=======================================================================================================================   
 
         ## X Axis
-        self.Fb.x = 500*self.throttleCmd -0.002*(self.Vb.x**2)
+        self.Fb.x = 360*self.throttleCmd -Sign(self.Vb.x)*0.002*(self.Vb.x**2)
 
         ## Y Axis
-        self.Fb.y = 0.0
+        self.Fb.y =  -0.02*Sign(self.Vb.y)*(self.Vb.y**2)
     
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
-        self.Fb.z = 0.0
+        self.Fb.z =  -0.02*Sign(self.Vb.z)*(self.Vb.z**2)
         ##=======================================================================================================================   
 
         ### 6-DOF SOLVER
         _6DOF_ACTIVE = True
         if _6DOF_ACTIVE:
-            self.W.p, self.W.q, self.W.r = 0,0,0 
-            self.solver.step(self.Fb, self.T, dt)
+            self.W.p, self.W.q, self.W.r = 0,0,0
+            Fext = Vec_xyz(0,0,21*self.Weight) 
+            self.solver.step(Fext, self.Fb, self.T, dt)
         else:
             self.attitude.roll_r  = 6.28*self.W.p
             self.attitude.pitch_r = 6.28*self.W.q
