@@ -75,12 +75,11 @@ class Data():
         m_data.mousePos = (getMouse())["pos"]
         roll = 2*(m_data.mousePos[0]/self.scrSize[0] -0.5) #< Stick left is negative
         elev = -2*(m_data.mousePos[1]/self.scrSize[1] -0.5) #< Stick up is negative
-        rud  = -0.2*roll
-        sb   = 0.5
-
-        rud = cmds.rudderCmd_d -0.01*(keys[pygame.K_z] -keys[pygame.K_c])
+        cmds.rudderCmd_d = 0.2*roll
+        rud = cmds.rudderCmd_d -0.01*(keys[pygame.K_z] -keys[pygame.K_c]) #< Rudder left is negative
         rud *= (1 -keys[pygame.K_x])
         cmds.rudderCmd_d = max(-1, min(1, rud))
+        sb   = 0.5
 
         throttle = cmds.throttleCmd +0.02*(keys[pygame.K_q] -keys[pygame.K_a])
         cmds.throttleCmd = max(0, min(1, throttle))
@@ -152,7 +151,7 @@ class Data():
             pitch_r = mdl.attitude.pitch_r
             if pitch_r >= 0.0:
                 ### Nose up
-                pitch_r = min(0.52, pitch_r) #< 30 deg 
+                pitch_r = min(0.3, pitch_r) #< 17 deg 
                 print(mdl.T.q, pitch_r)
                 mdl.attitude.set( 0.0, pitch_r, mdl.attitude.yaw_r )
             else:

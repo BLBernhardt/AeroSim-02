@@ -18,7 +18,7 @@ class NavionParams():
     RUD_TRIM_D    =  0.0 #< degrees
     RUD_MAX_ANG_D = 20.0 #< degrees
 
-    MAX_THRUST = 360.0*2  #< Thrust in lbs_F
+    MAX_THRUST = 360.0*3  #< Thrust in lbs_F
     #MAX_THRUST = 1601.36  #< Thrust in Newtons
 
     ALT_INIT    = 5000.0
@@ -48,9 +48,9 @@ class NavionParams():
 
     _C          =   4.9 #< Mean aerodynamic chord (ft)
     #_C          =   1.49 #< Mean aerodynamic chord (m)
-    _S          = 184.0 #< Wing area (ft^2)
+    _S          = 184.0 #< Main Wing area (ft^2)
     #_S          =  17.0 #< Wing area (m^2)
-    _B          =  33.4 #< Wing area (ft^2)
+    _B          =  33.4 #< Rudder Wing area (ft^2)
     #_B          =   3.07 #< Wing area (m^2)
 
     ## Aerodynamic Parameters (dimentionless)

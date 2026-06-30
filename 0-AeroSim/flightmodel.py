@@ -1,6 +1,6 @@
 ##==============================================================================
 ##
-##       SIMULATION Function,  Flightmodel-810-03
+##       SIMULATION X-Fwd, Y-right, Z-Down
 ##
 ##==============================================================================
 
@@ -32,39 +32,31 @@ class AeroModel():
         self.Ve = Vec_xyz(*MxV(self.attitude.dcm, self.Vb.getVector()))
         self.Ab = Vec_xyz() #< Acceleration (u, v, w)
         self.Fb = Vec_xyz() #< Force (forward, right, down )
+        self.Weight = self.params.WEIGHT  #< Weight lbs : mass (lbs/G slugs )
+        self.Thrust = 0.0 
 
-        self.Weight = weight_lbs  #< Weight lbs : mass (lbs/G slugs )
+        self.alpha_r, self.beta_r = (0.0, 0.0)
+        self.Lift, self.Drag = (0.0, 0.0)
+
+        self.elevatorCmd = 0.0  #< Elevator deflection (radians)
+        self.elevatorTrim_deg = self.params.ELV_TRIM_D
+
+        self.aileronCmd = 0.0   #< Aileron deflection (radians)
+        self.aileronTrim_deg = self.params.AIL_TRIM_D
+
+        self.rudderCmd = 0.0    #< Rudder deflection (degrees)
+        self.rudderTrim_deg = self.params.RUD_TRIM_D
 
         self.solver = Solver_6DOF(
             position = self.position, #< All values are passed by reference
-            Vb = self.Vb,
             Ve = self.Ve,
-            mass = (self.Weight,),
+            mass = (self.params.MASS,),
             attitude = self.attitude,
             Wb = self.W,
             inertia = Vec_xyz(self.params._Ixx,
                               self.params._Iyy,
                               self.params._Izz)
             )
-        self.alpha_r = 0.0  #< Angle of attack 
-        self.beta_r = 0.0   #< Sideslip angle 
-        self.Lift, self.Drag = (0.0, 0.0)
-
-        self.Thrust = 0.0 
-
-        self.elevatorCmd = 0.0    #< Elevator deflection (radians)
-        self.elevatorTrim_deg = self.params.ELV_TRIM_D
-
-        self.aileronCmd = 0.0    #< Aileron deflection (radians)
-        self.aileronTrim_deg = self.params.AIL_TRIM_D
-
-        self.rudderCmd = 0.0    #< Rudder deflection (degrees)
-        self.rudderTrim_deg = self.params.RUD_TRIM_D
-
-        if (units == "Metric") or (units == "Imperial"):    
-            print("UNITS set to %s\n"%units)
-        else:
-            print(">>>>> Units Not defined %s\n"%units)  
 
     def step(self, ctrls, dt=None ):
         dt = self.dt if dt==None else dt
@@ -84,23 +76,20 @@ class AeroModel():
         self.rudderCmd *= DEGtoRAD
 
         self.Thrust = ctrls.Throttle_Cmd * self.params.MAX_THRUST              #< Throttle Command setting [ 0, 1]
-        ##================== End Controls ============================================================================================
 
         ##================== Airspeed, Alpha, Beta, Flight Path ======================================================================
         ## Update the airspeed 
-        Vabs = self.Vb.mag()
-
         self.Vb = Vec_xyz(*MxV(self.attitude.inv(), self.Ve.getVector()))
+        Vabs = self.Vb.mag()
         if abs(self.Vb.x) < 1.0:
-            self.alpha_r = 0.0     #< No AOA and Sideslip at low speed
+            self.alpha_r = 0.0 #< No AOA and Sideslip at low speed
             self.beta_r  = 0.0
         else:
-            self.alpha_r =  atan( self.Vb.z/self.Vb.x ) #< GSOF - Probably incorrect
-            self.beta_r  = -asin( self.Vb.y/Vabs )      #< GSOF - Probably incorrect
-        ##============================================================================================================================
+            self.alpha_r =  min(0.26, max(-0.26, atan( self.Vb.z/self.Vb.x ))) #< Limited to 15 deg
+            self.beta_r  = min(0.5, max(-0.5, (asin( self.Vb.y/Vabs ))))
 
         ##========================== Momenets and rotation============================================================================
-        qS  = 0.5 * self.params.RHO * (Vabs**2) * self.params._S
+        qS  = 0.5 * self.params.RHO * (Vabs**2) * self.params._S #< S is wing area
         _B  = self.params._B
         qSc = qS * self.params._C
         qSb = qS * _B
@@ -112,8 +101,8 @@ class AeroModel():
         Clr   = self.params.Cl_R       #< Roll, Yaw-roll coupling ( change in Cl per unti of yaw rate. )
         Clp   = self.params.Cl_P       #< Roll, Damping ( change in Cl per unit of roll rate ) 
         self.T.p  = Clda*self.aileronCmd     #< Roll command
-        self.T.p += Clo -0.05*self.rudderCmd #< Roll moment due to rudder command
-        self.T.p += Clr*Wr*_B/(2*Vabs)       #< Yaw rate to roll moment
+        self.T.p += Clo -0.02*self.rudderCmd #< Rudder command to roll moment (Counter roll)
+        self.T.p += Clr*Wr*_B/(2*Vabs)       #< Yaw rate to roll moment (roll into the turn)
         self.T.p += Clp*Wp*_B/(2*Vabs)       #< Rate resistance
         self.T.p *= qSb                      #< Factor due to air speed 
         
@@ -122,7 +111,7 @@ class AeroModel():
         Cmde  = self.params.CM_DELTA_E #< Pitching moment slope due to elevator deflection (per radian)
         Cma   = self.params.CM_ALPHA   #< Pitching moment slope due to AoA (per radian)
         Cmq   = self.params.CM_Q       #< Pitch Damping coefficient#-0.7, -0.15
-        self.T.q  = Cmde*self.elevatorCmd #< Elevon command
+        self.T.q  = Cmde*self.elevatorCmd #< Command to pitch moment
         self.T.q += Cmo +Cma*self.alpha_r #< Wing pitch moment (baseline and angle of attack)
         self.T.q += Cmq*Wq                #< Rate resistance
         self.T.q *= qSc                   #< Factor due to air speed 
@@ -134,9 +123,9 @@ class AeroModel():
         Cndr  = self.params.CN_dr      #< Yaw, rudder deflection moment, rudder effectiveness
         Cnda  = self.params.CN_da      #< Yaw, aileron defection moment, aileron inducted yaw
         Cnr   = self.params.CN_r       #< Yaw, Damping coefficient
-        self.T.r  = Cndr*self.rudderCmd   #< Elevon command
-        self.T.r += Cno +Cnb*self.beta_r  #< Ruddermoment baseline and beta angle
-        self.T.r += Cnp*Wp*_B/(2*Vabs)    #< Roll rate to Yaw moment
+        self.T.r  = Cndr*self.rudderCmd   #< Command to yaw moment
+        self.T.r += Cno +Cnb*self.beta_r  #< Side slip (Beta) to moment (yaw stability)
+        self.T.r += -Cnp*Wp*_B/(2*Vabs)   #< Roll rate to Yaw moment (will roll into the turn)
         self.T.r += Cnr*Wr*_B/(2*Vabs)    #< Rate resistance
         self.T.r *= qSb                   #< Factor due to air speed 
         ##=======================================================================================================================   
@@ -144,42 +133,40 @@ class AeroModel():
         ## Lift and drag forces - linear
         CL = self.params.CL_0 +self.params.CL_ALPHA*self.alpha_r
         self.Lift = qS * CL
-        Cd = self.params.CD_0 +self.params.K*(CL**2)
+        Cd = self.params.CD_0 +self.params.K*self.alpha_r #< Prsuming CD_0 and K are normalized to wing area
         self.Drag = qS * Cd
-        ##===============================================================   
 
         ## X Axis
         self.Fb.x  = self.Thrust
-        self.Fb.x +=  self.Lift * sin(self.alpha_r)
-        self.Fb.x += -self.Drag * cos(self.alpha_r)
-        self.Fb.x += -self.Weight * sin(self.attitude.pitch_r) #< Forward force due to gravity and pitch angle
+        self.Fb.x += -self.Lift * sin(self.alpha_r) #< Lift component that pulls back
+        self.Fb.x += -self.Drag * cos(self.alpha_r) #< Drag
 
         ## Y Axis
-        Cy = self.params.CY_B * self.beta_r
-        Cy += self.params.CY_DELTA_R*self.rudderCmd
-        Cy += self.params.CY_p*Wp*self.Vb.z/(2*Vabs)
-        Cy += self.params.CY_r*Wr*self.Vb.z/(2*Vabs)
+        Cy  = self.params.CY_DELTA_R*self.rudderCmd  #< Rudder to side movement
+        Cy += self.params.CY_B * self.beta_r         #< Side force due to side slip
+        #Cy += self.params.CY_p*Wp*self.Vb.z/(2*Vabs) #< ??
+        #Cy += self.params.CY_r*Wr*self.Vb.z/(2*Vabs) #< ??
 
         self.Fb.y = qS * Cy
         self.Ab.y  = self.Fb.y / self.params.MASS
-        self.Ab.y += Wr * self.Vb.x #< Side force due to roll rate
-        self.Ab.y += Wp * self.Vb.z #< Side force due to pitch rate
-        self.Ab.y += self.params.G * cos(self.attitude.pitch_r) * sin(self.attitude.roll_r) #< Side force due to gravity
+        #self.Ab.y += Wr * self.Vb.x #< Side force due to roll rate  ??
+        #self.Ab.y -= Wp * self.Vb.z #< Side force due to pitch rate ??
         self.Fb.y = self.Ab.y * self.params.MASS
 
         ## Z axis, (-) to flip for Z axis sign convention, right hand rule
-        self.Fb.z =   self.Lift * cos(self.alpha_r)
-        self.Fb.z += -self.Drag * sin(self.alpha_r)
-        self.Fb.z += -self.Weight * cos(self.attitude.roll_r) * cos(self.attitude.pitch_r)
-        self.Fb.z *= -1
+        self.Fb.z  = -self.Lift * cos(self.alpha_r) #< Lift component up
+        self.Fb.z += -self.Drag * sin(self.alpha_r) #< Drag component up
+
+        Fext = Vec_xyz(0,0,self.params.G* self.params.MASS)
         ##=======================================================================================================================   
 
-        self.solver.step(self.Fb, self.T, dt)
+        self.solver.step(Fext, self.Fb, self.T, dt)
 
-        print("AOA,Beta: %1.2f, %1.2f"%(self.alpha_r*RADtoDEG, self.beta_r*RADtoDEG))
+        #print("AOA,Beta: %1.2f, %1.2f"%(self.alpha_r*RADtoDEG, self.beta_r*RADtoDEG))
         #print("Torque : %s"%(self.T))
         #print("Vb: %s"%(self.Vb))
         #print("Ve: %s"%(self.Ve))
+        #print("Fb: %s"%(self.Fb))
 
         ##=================================================================================================================
 

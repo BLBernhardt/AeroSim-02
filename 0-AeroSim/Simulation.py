@@ -199,7 +199,8 @@ if __name__ == "__main__":
     data = Data(screen_size)
     clock = Clock()
 
-    mode = "arcade" # False, "navion", "arcade"
+    #mode = "arcade" # False, "navion", "arcade"
+    mode = "navion" # False, "navion", "arcade"
 
     help(mode)
     while True:
