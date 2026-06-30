@@ -80,7 +80,9 @@ class AeroModel():
         ##================== Airspeed, Alpha, Beta, Flight Path ======================================================================
         ## Update the airspeed 
         self.Vb = Vec_xyz(*MxV(self.attitude.inv(), self.Ve.getVector()))
-        Vabs = self.Vb.mag()
+        Vabs = max(1.0,self.Vb.mag())
+        print("Vabs protection") if Vabs == 5.0 else None
+        
         if abs(self.Vb.x) < 1.0:
             self.alpha_r = 0.0 #< No AOA and Sideslip at low speed
             self.beta_r  = 0.0
@@ -159,7 +161,10 @@ class AeroModel():
 
         Fext = Vec_xyz(0,0,self.params.G* self.params.MASS)
         ##=======================================================================================================================   
-
+        #min(0.01, dt)
+        if dt > 0.035:
+            print("dt too high %1.3f"%dt)
+            dt = 0.01
         self.solver.step(Fext, self.Fb, self.T, dt)
 
         #print("AOA,Beta: %1.2f, %1.2f"%(self.alpha_r*RADtoDEG, self.beta_r*RADtoDEG))

@@ -199,24 +199,29 @@ class Attitude():
         return T(self.dcm)
     
     def _normalize(self):
-        temporary = matrix(3,3)
+        i = 0
         error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
-        temporary[0] = Vxk( self.dcm[1], error)
-        temporary[1] = Vxk( self.dcm[0], error)
+        while error > 0.0001:
+            i += 1
+            #print("%d, %1.4f"%(i,error))
+            temporary = matrix(3,3)
+            temporary[0] = Vxk( self.dcm[1], error)
+            temporary[1] = Vxk( self.dcm[0], error)
 
-        temporary[0] = V_add_V(temporary[0], self.dcm[0])
-        temporary[1] = V_add_V(temporary[1], self.dcm[1])
+            temporary[0] = V_add_V(temporary[0], self.dcm[0])
+            temporary[1] = V_add_V(temporary[1], self.dcm[1])
 
-        temporary[2] = VxV3( temporary[0], temporary[1] )
+            temporary[2] = VxV3( temporary[0], temporary[1] )
 
-        renorm= 0.5 *(3 -V_dot_V(temporary[0], temporary[0]) )
-        self.dcm[0] = Vxk(temporary[0], renorm)
+            renorm= 0.5 *(3 -V_dot_V(temporary[0], temporary[0]) )
+            self.dcm[0] = Vxk(temporary[0], renorm)
 
-        renorm = 0.5 *(3 -V_dot_V(temporary[1], temporary[1]) )
-        self.dcm[1] = Vxk(temporary[1], renorm)
+            renorm = 0.5 *(3 -V_dot_V(temporary[1], temporary[1]) )
+            self.dcm[1] = Vxk(temporary[1], renorm)
 
-        renorm = 0.5 *(3 - V_dot_V(temporary[2], temporary[2]) )
-        self.dcm[2] = Vxk(temporary[2], renorm)
+            renorm = 0.5 *(3 - V_dot_V(temporary[2], temporary[2]) )
+            self.dcm[2] = Vxk(temporary[2], renorm)
+            error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
         return self
 
     def _updateAngles(self) -> None:

@@ -84,15 +84,17 @@ class Data():
         throttle = cmds.throttleCmd +0.02*(keys[pygame.K_q] -keys[pygame.K_a])
         cmds.throttleCmd = max(0, min(1, throttle))
 
-        self.data.ctrls.Elevator_Cmd = -0.9*elev
-        self.data.ctrls.Aileron_Cmd  = 0.9*roll
+        self.data.ctrls.Elevator_Cmd = -elev
+        self.data.ctrls.Aileron_Cmd  =  roll
         self.data.ctrls.Rudder_Cmd   = cmds.rudderCmd_d
         self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
-        cmds.lElevonCmd_d = 25*(-roll +elev)
-        cmds.rElevonCmd_d = 25*(+roll +elev)
 
         ### 6DOF MODEL
         self.physics(test)
+
+        cmds.lElevonCmd_d = 25*(-roll +elev)
+        cmds.rElevonCmd_d = 25*(+roll +elev)
+        cmds.rudderCmd_d *= 25
 
         ### LANDING GEARS
         gearsDown = cmds.gearExtendCmd_b +(keys[pygame.K_b] -keys[pygame.K_g])
@@ -152,7 +154,6 @@ class Data():
             if pitch_r >= 0.0:
                 ### Nose up
                 pitch_r = min(0.3, pitch_r) #< 17 deg 
-                print(mdl.T.q, pitch_r)
                 mdl.attitude.set( 0.0, pitch_r, mdl.attitude.yaw_r )
             else:
                 ### Nose down

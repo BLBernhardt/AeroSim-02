@@ -203,12 +203,17 @@ if __name__ == "__main__":
     mode = "navion" # False, "navion", "arcade"
 
     help(mode)
+    calcFrame = 5
     while True:
         ###Loop to update gauges
         #T0 = time.time()
-        for i in range(0,4):
-           cockpit.update( data.getData(test=mode) )
-        #print(time.time() -T0)
-        cockpit.draw()
-        update()
-        clock.tick(Fs=20)
+        newData = data.getData(test=mode)
+        calcFrame -= 1
+        if calcFrame == 0:
+            calcFrame = 5
+            cockpit.update(newData)
+            cockpit.draw()
+        else:
+            ##print(time.time() -T0)
+            update()
+            clock.tick(Fs=100)
