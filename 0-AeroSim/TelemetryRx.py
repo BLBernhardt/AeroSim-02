@@ -51,8 +51,8 @@ class Data():
         self.time_Z1 = time.time()
         self.dt = 0.1
         self.data = Buses()
-        self.navion = AeroModel(dt=0.05, altInit_m=500.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
-        self.test   = TestModel(dt=0.05, altInit_m=500.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
+        self.navion = AeroModel(dt=0.05, altInit_m=10.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
+        self.test   = TestModel(dt=0.05, altInit_m=100.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
 
     def getData(self, test=False):
         """Generate and return new set of data"""
@@ -144,12 +144,18 @@ class Data():
         ins.mach = airSpeed*0.002
 
         ### Ground collision detection
-        if ins.height < 0:
+        if ins.height < 0.0:
             mdl.position.z = 0.0
+            mdl.Ve.z = min(0.0, mdl.Ve.z) #< Only negative (up)
+            mdl.W.p = 0.0
 
-            if ins.pitch < 0.0:
-                mdl.attitude.set( 0,0,mdl.attitude.yaw_r )
-                mdl.Vb.z = 0.0
-                mdl.Ve.z = 0.0
-                mdl.W.p = 0.0
-                mdl.W.q = 0.0
+            pitch_r = mdl.attitude.pitch_r
+            if pitch_r >= 0.0:
+                ### Nose up
+                pitch_r = min(0.52, pitch_r) #< 30 deg 
+                print(mdl.T.q, pitch_r)
+                mdl.attitude.set( 0.0, pitch_r, mdl.attitude.yaw_r )
+            else:
+                ### Nose down
+                mdl.attitude.set( 0.0, 0.0, mdl.attitude.yaw_r )
+                mdl.W.q = max(0.0, mdl.W.q) #< Only pitch up
