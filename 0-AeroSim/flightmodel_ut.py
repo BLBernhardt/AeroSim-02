@@ -86,7 +86,7 @@ class AeroModel():
         if _6DOF_ACTIVE:
             self.W.p, self.W.q, self.W.r = 0,0,0
             Fext = Vec_xyz(0,0,21*self.Weight) 
-            self.solver.step(Fext, self.Fb, self.T, dt)
+            self.Ab = self.solver.step(Fext, self.Fb, self.T, dt)
         else:
             self.attitude.roll_r  = 6.28*self.W.p
             self.attitude.pitch_r = 6.28*self.W.q

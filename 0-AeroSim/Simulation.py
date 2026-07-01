@@ -12,7 +12,8 @@ from math import pi, sqrt
 from GSOF_Cockpit.Aerospace import ArtificialHorizon as AH
 from GSOF_Cockpit.Aerospace import TurnCoordinator_Analog as TC
 from GSOF_Cockpit.Aerospace import AltMeter_Analog as ALT
-from GSOF_Cockpit.Aerospace import MachMeter_Analog as MACH
+#from GSOF_Cockpit.Aerospace import MachMeter_Analog as MACH
+from GSOF_Cockpit.Aerospace import GMeter_Analog as G
 from GSOF_Cockpit.Aerospace import AirSpeedMeter_Analog as AS
 from GSOF_Cockpit.Aerospace import VsiMeter_Analog as VSI
 from GSOF_Cockpit.Aerospace import Heading_Analog as HEAD
@@ -73,7 +74,8 @@ class CockpitView():
         self.horizon = AH.ArtificialHorizon( self.screen, pos=horizon_pos, size=horizon_size,
                                              rollToDeg=180/pi, pitchToDeg=180/pi)
         self.alt     = ALT.AltMeter( self.screen, pos=alt_pos, size=alt_size)    
-        self.mach    = MACH.MachMeter( self.screen, pos=mach_pos, size=mach_size )
+        #self.mach    = MACH.MachMeter( self.screen, pos=mach_pos, size=mach_size )
+        self.gm      = G.GMeter_Analog( self.screen, pos=mach_pos, size=mach_size )
         self.minimap = MAP.Map( screen, pos=minimap_pos, size=minimap_size,
                                 kp = 0.9,
                                 bodyImage=imageLoad("%s/skin/Frame_Rect.png" % path),
@@ -153,7 +155,8 @@ class CockpitView():
         self.turn.update( -self.turnRate_rps, sideslip )
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
-        self.mach.update( ins.mach )
+        #self.mach.update( ins.mach )
+        self.gm.update( -9.8*(1 +ins.upAcc/32) )
         self.minimap.update(x=ins.east/100, y=-ins.north/100, deg=ins.azimuth)
         self.vsi.update( 60*ins.vel_up/1000 )
         self.head.update( ins.azimuth, ins.azimuth )
@@ -168,7 +171,8 @@ class CockpitView():
         self.horizon.draw()
         self.turn.draw()
         self.alt.draw()
-        self.mach.draw()
+        #self.mach.draw()
+        self.gm.draw()
         self.minimap.draw()
         self.vsi.draw()
         self.head.draw()

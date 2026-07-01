@@ -47,6 +47,8 @@ class AeroModel():
         self.rudderCmd = 0.0    #< Rudder deflection (degrees)
         self.rudderTrim_deg = self.params.RUD_TRIM_D
 
+        self.gearExtendCmd = 0
+
         self.solver = Solver_6DOF(
             position = self.position, #< All values are passed by reference
             Ve = self.Ve,
@@ -74,7 +76,7 @@ class AeroModel():
         self.rudderCmd  = -(ctrls.Rudder_Cmd * self.params.RUD_MAX_ANG_D )     #< Roll stick x axis range -1.0 to 1.0
         self.rudderCmd += self.rudderTrim_deg
         self.rudderCmd *= DEGtoRAD
-
+        self.gearExtendCmd = max(0, min(1, ctrls.GearExtend_Cmd))
         self.Thrust = ctrls.Throttle_Cmd * self.params.MAX_THRUST              #< Throttle Command setting [ 0, 1]
 
         ##================== Airspeed, Alpha, Beta, Flight Path ======================================================================
@@ -87,8 +89,8 @@ class AeroModel():
             self.alpha_r = 0.0 #< No AOA and Sideslip at low speed
             self.beta_r  = 0.0
         else:
-            self.alpha_r =  min(0.26, max(-0.26, atan( self.Vb.z/self.Vb.x ))) #< Limited to 15 deg
-            self.beta_r  = min(0.5, max(-0.5, (asin( self.Vb.y/Vabs ))))
+            self.alpha_r =  min(0.52, max(-0.52, atan( self.Vb.z/self.Vb.x ))) #< Limited to +/-30 deg
+            self.beta_r  = min(0.707, max(-0.707, (asin( self.Vb.y/Vabs ))))   #< Limited to +/-45 deg
 
         ##========================== Momenets and rotation============================================================================
         qS  = 0.5 * self.params.RHO * (Vabs**2) * self.params._S #< S is wing area
@@ -110,12 +112,14 @@ class AeroModel():
         
         ## Y axis
         Cmo   = self.params.CM_0       #< Baseline pitching moment coefficient
+        Gmo   = self.params.GM_0       #< Baseline pitching moment coefficient due to gears down
         Cmde  = self.params.CM_DELTA_E #< Pitching moment slope due to elevator deflection (per radian)
         Cma   = self.params.CM_ALPHA   #< Pitching moment slope due to AoA (per radian)
         Cmq   = self.params.CM_Q       #< Pitch Damping coefficient#-0.7, -0.15
         self.T.q  = Cmde*self.elevatorCmd #< Command to pitch moment
         self.T.q += Cmo +Cma*self.alpha_r #< Wing pitch moment (baseline and angle of attack)
         self.T.q += Cmq*Wq                #< Rate resistance
+        self.T.q += self.gearExtendCmd*Gmo
         self.T.q *= qSc                   #< Factor due to air speed 
         
         ## Z axis 
@@ -136,6 +140,7 @@ class AeroModel():
         CL = self.params.CL_0 +self.params.CL_ALPHA*self.alpha_r
         self.Lift = qS * CL
         Cd = self.params.CD_0 +self.params.K*self.alpha_r #< Prsuming CD_0 and K are normalized to wing area
+        Cd += self.gearExtendCmd*self.params.G_CD_0
         self.Drag = qS * Cd
 
         ## X Axis
@@ -165,7 +170,7 @@ class AeroModel():
         if dt > 0.035:
             print("dt too high %1.3f"%dt)
             dt = 0.01
-        self.solver.step(Fext, self.Fb, self.T, dt)
+        self.Ab = self.solver.step(Fext, self.Fb, self.T, dt)
 
         #print("AOA,Beta: %1.2f, %1.2f"%(self.alpha_r*RADtoDEG, self.beta_r*RADtoDEG))
         #print("Torque : %s"%(self.T))

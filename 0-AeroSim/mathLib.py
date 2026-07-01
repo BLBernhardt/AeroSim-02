@@ -209,7 +209,7 @@ class Attitude():
     def _normalize(self):
         i = 0
         error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
-        while error > 0.0001:
+        while (error > 0.0001) and (i<5):
             i += 1
             #print("%d, %1.4f"%(i,error))
             temporary = matrix(3,3)
@@ -237,12 +237,12 @@ class Attitude():
         dcm = self.dcm
         R11 = dcm[0][0]
         R21 = dcm[1][0]
-        R31 = min(1, max(-1,dcm[2][0]))
+        R31 = dcm[2][0]
         R32 = dcm[2][1]
         R33 = dcm[2][2]
         self.yaw_r   = atan2(R21,R11)
-        self.pitch_r = asin(-R31)
         self.roll_r  = atan2(R32,R33)
+        self.pitch_r = atan2(-R31, sqrt(R32**2 +R33**2) )
 
     def __str__(self) -> str:
         s = ""

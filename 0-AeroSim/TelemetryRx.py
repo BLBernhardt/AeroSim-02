@@ -53,7 +53,8 @@ class Data():
         self.data = Buses()
         self.navion = AeroModel(dt=0.05, altInit_m=10.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
         self.test   = TestModel(dt=0.05, altInit_m=100.0, speed_fps=220.0, weight_lbs=2750, units="Metric")
-
+        self.rud = 0.0
+        
     def getData(self, test=False):
         """Generate and return new set of data"""
         for event in pygame.event.get():
@@ -75,19 +76,22 @@ class Data():
         m_data.mousePos = (getMouse())["pos"]
         roll = 2*(m_data.mousePos[0]/self.scrSize[0] -0.5) #< Stick left is negative
         elev = -2*(m_data.mousePos[1]/self.scrSize[1] -0.5) #< Stick up is negative
-        cmds.rudderCmd_d = 0.2*roll
-        rud = cmds.rudderCmd_d -0.01*(keys[pygame.K_z] -keys[pygame.K_c]) #< Rudder left is negative
-        rud *= (1 -keys[pygame.K_x])
-        cmds.rudderCmd_d = max(-1, min(1, rud))
+        self.rud = min(1, max(-1, self.rud -0.01*(keys[pygame.K_z] -keys[pygame.K_c]))) #< Rudder left is negative
+        self.rud *= (1 -keys[pygame.K_x])
+        cmds.rudderCmd_d = max(-1, min(1, 0.2*roll +self.rud))
         sb   = 0.5
 
         throttle = cmds.throttleCmd +0.02*(keys[pygame.K_q] -keys[pygame.K_a])
         cmds.throttleCmd = max(0, min(1, throttle))
 
+        gearsDown = cmds.gearExtendCmd_b +(keys[pygame.K_b] -keys[pygame.K_g])
+        cmds.gearExtendCmd_b = max(0, min(1, gearsDown))
+
         self.data.ctrls.Elevator_Cmd = -elev
         self.data.ctrls.Aileron_Cmd  =  roll
         self.data.ctrls.Rudder_Cmd   = cmds.rudderCmd_d
         self.data.ctrls.Throttle_Cmd = cmds.throttleCmd
+        self.data.ctrls.GearExtend_Cmd = cmds.gearExtendCmd_b
 
         ### 6DOF MODEL
         self.physics(test)
@@ -95,10 +99,6 @@ class Data():
         cmds.lElevonCmd_d = 25*(-roll +elev)
         cmds.rElevonCmd_d = 25*(+roll +elev)
         cmds.rudderCmd_d *= 25
-
-        ### LANDING GEARS
-        gearsDown = cmds.gearExtendCmd_b +(keys[pygame.K_b] -keys[pygame.K_g])
-        cmds.gearExtendCmd_b = max(0, min(1, gearsDown))
 
         ### WEIGHT ON WHEELS
         m_data.wow.left  = bool(keys[pygame.K_1])
@@ -145,10 +145,11 @@ class Data():
         ins.mach = airSpeed*0.002
 
         ### Ground collision detection
-        if ins.height < 0.0:
+        if ins.height < 0.2:
             mdl.position.z = 0.0
             mdl.Ve.z = min(0.0, mdl.Ve.z) #< Only negative (up)
             mdl.W.p = 0.0
+            ins.upAcc = 0
 
             pitch_r = mdl.attitude.pitch_r
             if pitch_r >= 0.0:

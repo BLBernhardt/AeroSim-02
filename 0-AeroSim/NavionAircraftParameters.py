@@ -56,6 +56,7 @@ class NavionParams():
     ## Aerodynamic Parameters (dimentionless)
     CL_0       = 0.270   #< Lift coefficient 0.27, 0.38
     CD_0       = 0.025   #< Drag coefficient
+    G_CD_0     = 0.025   #< Drag coefficient
     K          = 0.061   #< Induced Drag Factor
 
     CL_ALPHA    = 4.44   #< Lift coefficient slope due to AoA (per radian)
@@ -63,6 +64,7 @@ class NavionParams():
 
 
     CM_0       =  0.0    #< Baseline pitching moment coefficient
+    GM_0       = -0.03   #< Baseline pitching moment coefficient
     CM_Q       = -0.7    #< Pitch damping coefficient#-0.7, -0.15
     CM_DELTA_E = -0.923  #< Pitching moment slope due to elevator deflection (per radian)
     CM_ALPHA   = -0.683  #< Pitching moment slope due to AoA (per radian)

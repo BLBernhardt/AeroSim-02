@@ -21,11 +21,14 @@ class Solver_6DOF():
         ## Next state - Body to earth transform
         mass = self.mass[0]
         Fe = MxV(self.attitude.dcm, Fb.getVector())
-        self.Ve.x += ((Fe[0] +Fext.x)/mass) * dt
-        self.Ve.y += ((Fe[1] +Fext.y)/mass) * dt
-        self.Ve.z += ((Fe[2] +Fext.z)/mass) * dt
+        Ab = Vec_xyz(((Fe[0] +Fext.x)/mass), ((Fe[1] +Fext.y)/mass), ((Fe[2] +Fext.z)/mass))
+        self.Ve.x += Ab.x * dt
+        self.Ve.y += Ab.y * dt
+        self.Ve.z += Ab.z * dt
 
         ## Next state - Position in earth coordinates
         self.position.x += self.Ve.x * dt
         self.position.y += self.Ve.y * dt
         self.position.z += self.Ve.z * dt
+
+        return Ab
