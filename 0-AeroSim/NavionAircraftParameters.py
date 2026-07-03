@@ -18,7 +18,7 @@ class NavionParams():
     RUD_TRIM_D    =  0.0 #< degrees
     RUD_MAX_ANG_D = 20.0 #< degrees
 
-    MAX_THRUST = 360.0  #< Thrust in lbs_F
+    MAX_THRUST = 360.0*3  #< Thrust in lbs_F
     #MAX_THRUST = 1601.36  #< Thrust in Newtons
 
     ALT_INIT    = 5000.0
@@ -48,14 +48,15 @@ class NavionParams():
 
     _C          =   4.9 #< Mean aerodynamic chord (ft)
     #_C          =   1.49 #< Mean aerodynamic chord (m)
-    _S          = 184.0 #< Wing area (ft^2)
+    _S          = 184.0 #< Main Wing area (ft^2)
     #_S          =  17.0 #< Wing area (m^2)
-    _B          =  33.4 #< Wing area (ft^2)
+    _B          =  33.4 #< Rudder Wing area (ft^2)
     #_B          =   3.07 #< Wing area (m^2)
 
     ## Aerodynamic Parameters (dimentionless)
     CL_0       = 0.270   #< Lift coefficient 0.27, 0.38
     CD_0       = 0.025   #< Drag coefficient
+    G_CD_0     = 0.025   #< Drag coefficient
     K          = 0.061   #< Induced Drag Factor
 
     CL_ALPHA    = 4.44   #< Lift coefficient slope due to AoA (per radian)
@@ -63,6 +64,7 @@ class NavionParams():
 
 
     CM_0       =  0.0    #< Baseline pitching moment coefficient
+    GM_0       = -0.03   #< Baseline pitching moment coefficient
     CM_Q       = -0.7    #< Pitch damping coefficient#-0.7, -0.15
     CM_DELTA_E = -0.923  #< Pitching moment slope due to elevator deflection (per radian)
     CM_ALPHA   = -0.683  #< Pitching moment slope due to AoA (per radian)

@@ -68,21 +68,21 @@ class Vec_pqr():
             [-wy, wx,   1]
             ]
 
-    def getQuaternion(self, dt ) -> Q:
-        """  """
-        mag = self.mag()
-        if ( mag == 0.0 ):
-            return Qtrn( 1, 0, 0, 0 )
-
-        half_angle = 0.5 * mag * dt
-        sin_half = sin( half_angle )
-        cos_half = cos( half_angle )
-
-        return Qtrn(
-            w=cos_half,
-            x=sin_half * self.p / mag,
-            y=sin_half * self.q / mag,
-            z=sin_half * self.r / mag)
+##    def getQuaternion(self, dt ) -> Q:
+##        """  """
+##        mag = self.mag()
+##        if ( mag == 0.0 ):
+##            return Qtrn( 1, 0, 0, 0 )
+##
+##        half_angle = 0.5 * mag * dt
+##        sin_half = sin( half_angle )
+##        cos_half = cos( half_angle )
+##
+##        return Qtrn(
+##            w=cos_half,
+##            x=sin_half * self.p / mag,
+##            y=sin_half * self.q / mag,
+##            z=sin_half * self.r / mag)
 
     def __str__(self) -> str:
         s = ""
@@ -93,85 +93,92 @@ class Vec_pqr():
     def print(self) -> None:
         print("Vec_pqr:, " +self.__str__())
 
-class Qtrn():
-    def __init__(self, w=0,x=0,y=0,z=0) -> Self:
-        self.w=w
-        self.x=x
-        self.y=y
-        self.z=z        
-
-    def copy(self) -> Self:
-        return Qtrn(self.w, self.x, self.y, self.z)
-        
-    def mag(self) -> float:
-        return sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
-
-    def conj(self) -> Self:
-        return Qtrn(self.w, -self.x, -self.y, -self.z)
-    
-    def multiply( self, q2 ) -> Self:
-        """Quaternion multiplication"""
-        q1 = self
-        w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
-        x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y
-        y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x
-        z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
-        self.w, self.x, self.y, self.z  = (w,x,y,z)
-        return self
-
-    def normalize(self) -> Self:
-        """Normalize quaternion"""
-        mag = self.mag()
-        if mag > 0.0:
-            self.w /= mag
-            self.x /= mag
-            self.y /= mag
-            self.z /= mag
-        else:
-            printf("Error - normalize_quat() - something wrong with quaternion - divide by zero, mag = 0.0 \n")
-        return self
-
-    def getEuler(self) -> Vec_pqr: 
-        """Extract Euler angles from quaternion( roll, pitch, yaw in degrees )"""
-        ## Roll( X-axis rotation )
-        sinr_cosp = 2.0*( self.w * self.x + self.y * self.z )
-        cosr_cosp = 1.0 -2.0*( self.x**2 +self.y**2 )
-        roll = atan2( sinr_cosp, cosr_cosp )
-
-        ## Pitch( Y-axis rotation )
-        sinp = 2.0 * ( self.w * self.y - self.z * self.x )
-        if( abs(sinp) >= 1.0 ):
-            pitch = Sign(sinp)*M_PI / 2.0
-        else:
-            pitch = asin( sinp )
-
-        ## Yaw( Z-axis rotation )
-        siny_cosp = 2.0 * ( self.w * self.z + self.x * self.y )
-        cosy_cosp = 1.0 - 2.0 * ( self.y**2 + self.z**2 )
-        yaw = atan2( siny_cosp, cosy_cosp )
-        return Vec_pqr(p=roll, q=pitch, r=yaw)
-
-    def Heading(self) -> float: 
-        """Compute Heading Ang_le ( radians )"""
-        ## Rotate body x-axis ( 1,0,0 ) Int_o inrt frame
-        fx = 1 - 2*(self.y**2 +self.z**2)
-        fz = 2 * ( self.x*self.z - self.w*self.y )
-        return atan2( fx, fz ) #< atan2( east, north )
-
-    def __str__(self) -> str:
-        s = ""
-        for v in (self.w, self.x, self.y, self.z):
-            s += "%1.3f, "%(v)
-        return s[0:-2]
-
-    def print(self) -> None:
-        print("Qtrn_wxyz:, " +self.__str__())
+##class Qtrn():
+##    def __init__(self, w=0,x=0,y=0,z=0) -> Self:
+##        self.w=w
+##        self.x=x
+##        self.y=y
+##        self.z=z        
+##
+##    def copy(self) -> Self:
+##        return Qtrn(self.w, self.x, self.y, self.z)
+##        
+##    def mag(self) -> float:
+##        return sqrt(self.w**2 +self.x**2 +self.y**2 +self.z**2)
+##
+##    def conj(self) -> Self:
+##        return Qtrn(self.w, -self.x, -self.y, -self.z)
+##    
+##    def multiply( self, q2 ) -> Self:
+##        """Quaternion multiplication"""
+##        q1 = self
+##        w = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
+##        x = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y
+##        y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x
+##        z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w
+##        self.w, self.x, self.y, self.z  = (w,x,y,z)
+##        return self
+##
+##    def normalize(self) -> Self:
+##        """Normalize quaternion"""
+##        mag = self.mag()
+##        if mag > 0.0:
+##            self.w /= mag
+##            self.x /= mag
+##            self.y /= mag
+##            self.z /= mag
+##        else:
+##            printf("Error - normalize_quat() - something wrong with quaternion - divide by zero, mag = 0.0 \n")
+##        return self
+##
+##    def getEuler(self) -> Vec_pqr: 
+##        """Extract Euler angles from quaternion( roll, pitch, yaw in degrees )"""
+##        ## Roll( X-axis rotation )
+##        sinr_cosp = 2.0*( self.w * self.x + self.y * self.z )
+##        cosr_cosp = 1.0 -2.0*( self.x**2 +self.y**2 )
+##        roll = atan2( sinr_cosp, cosr_cosp )
+##
+##        ## Pitch( Y-axis rotation )
+##        sinp = 2.0 * ( self.w * self.y - self.z * self.x )
+##        if( abs(sinp) >= 1.0 ):
+##            pitch = Sign(sinp)*M_PI / 2.0
+##        else:
+##            pitch = asin( sinp )
+##
+##        ## Yaw( Z-axis rotation )
+##        siny_cosp = 2.0 * ( self.w * self.z + self.x * self.y )
+##        cosy_cosp = 1.0 - 2.0 * ( self.y**2 + self.z**2 )
+##        yaw = atan2( siny_cosp, cosy_cosp )
+##        return Vec_pqr(p=roll, q=pitch, r=yaw)
+##
+##    def Heading(self) -> float: 
+##        """Compute Heading Ang_le ( radians )"""
+##        ## Rotate body x-axis ( 1,0,0 ) Int_o inrt frame
+##        fx = 1 - 2*(self.y**2 +self.z**2)
+##        fz = 2 * ( self.x*self.z - self.w*self.y )
+##        return atan2( fx, fz ) #< atan2( east, north )
+##
+##    def __str__(self) -> str:
+##        s = ""
+##        for v in (self.w, self.x, self.y, self.z):
+##            s += "%1.3f, "%(v)
+##        return s[0:-2]
+##
+##    def print(self) -> None:
+##        print("Qtrn_wxyz:, " +self.__str__())
 
 class Attitude():
+    """
+    Right hand role. Z-down, Y-right, X-forward
+    +Pitch up
+    +Roll right
+    +Yaw clockwise
+    """
     def __init__(self, roll_r=0.0, pitch_r=0.0, yaw_r=0.0):
         self.set(roll_r, pitch_r, yaw_r)
         
     def set(self, roll_r, pitch_r, yaw_r):
+        """yaw is around Z, pitch is around Y, and roll is around X"""
         self.roll_r  = roll_r
         self.pitch_r = pitch_r
         self.yaw_r   = yaw_r
@@ -179,7 +186,7 @@ class Attitude():
         return self
 
     def _updateDCM(self) -> None:
-        """ a is around Z, b is around Y, and c is around X"""
+        """ X-Fwd, Y-right, Z-Down"""
         p = PI/2
         a,b,c = self.yaw_r, self.pitch_r, self.roll_r
         ca,cb,cc = cos(a), cos(b), cos(c)
@@ -190,6 +197,7 @@ class Attitude():
                    [ -sb,       cb*sc,          cb*cc    ]]
 
     def addW(self, W, dt):
+        """W[0] around X (roll), W[1] around Y (pitch), W[3] around Z (yaw)"""
         WxDT = W.getRotationTensor(dt)
         self.dcm = MxM(self.dcm, WxDT)
         self._normalize()._updateAngles()
@@ -199,36 +207,42 @@ class Attitude():
         return T(self.dcm)
     
     def _normalize(self):
-        temporary = matrix(3,3)
+        i = 0
         error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
-        temporary[0] = Vxk( self.dcm[1], error)
-        temporary[1] = Vxk( self.dcm[0], error)
+        while (error > 0.0001) and (i<5):
+            i += 1
+            #print("%d, %1.4f"%(i,error))
+            temporary = matrix(3,3)
+            temporary[0] = Vxk( self.dcm[1], error)
+            temporary[1] = Vxk( self.dcm[0], error)
 
-        temporary[0] = V_add_V(temporary[0], self.dcm[0])
-        temporary[1] = V_add_V(temporary[1], self.dcm[1])
+            temporary[0] = V_add_V(temporary[0], self.dcm[0])
+            temporary[1] = V_add_V(temporary[1], self.dcm[1])
 
-        temporary[2] = VxV3( temporary[0], temporary[1] )
+            temporary[2] = VxV3( temporary[0], temporary[1] )
 
-        renorm= 0.5 *(3 -V_dot_V(temporary[0], temporary[0]) )
-        self.dcm[0] = Vxk(temporary[0], renorm)
+            renorm= 0.5 *(3 -V_dot_V(temporary[0], temporary[0]) )
+            self.dcm[0] = Vxk(temporary[0], renorm)
 
-        renorm = 0.5 *(3 -V_dot_V(temporary[1], temporary[1]) )
-        self.dcm[1] = Vxk(temporary[1], renorm)
+            renorm = 0.5 *(3 -V_dot_V(temporary[1], temporary[1]) )
+            self.dcm[1] = Vxk(temporary[1], renorm)
 
-        renorm = 0.5 *(3 - V_dot_V(temporary[2], temporary[2]) )
-        self.dcm[2] = Vxk(temporary[2], renorm)
+            renorm = 0.5 *(3 - V_dot_V(temporary[2], temporary[2]) )
+            self.dcm[2] = Vxk(temporary[2], renorm)
+            error = -V_dot_V( self.dcm[0], self.dcm[1])*0.5
         return self
 
     def _updateAngles(self) -> None:
+        """yaw is around Z, pitch is around Y, and roll is around X"""
         dcm = self.dcm
         R11 = dcm[0][0]
         R21 = dcm[1][0]
-        R31 = min(1, max(-1,dcm[2][0]))
+        R31 = dcm[2][0]
         R32 = dcm[2][1]
         R33 = dcm[2][2]
         self.yaw_r   = atan2(R21,R11)
-        self.pitch_r = asin(-R31)
         self.roll_r  = atan2(R32,R33)
+        self.pitch_r = atan2(-R31, sqrt(R32**2 +R33**2) )
 
     def __str__(self) -> str:
         s = ""
@@ -364,38 +378,38 @@ def T(M) -> list:
 ##    b = asin(-R31)
 ##    c = atan(R32/R33)
 ##    return (a,b,c)
-    
-def body_to_earth_M( body, q ) -> Vec_xyz:
-    """Rotate vector by a quaternion using matrix math"""
-    x = q.x
-    y = q.y
-    z = q.z
-    w = q.w
-
-    R11 = 1 - 2 * ( y * y + z * z )
-    R12 = 2     * ( x * y - z * w )
-    R13 = 2     * ( x * z + y * w )
-
-    R21 = 2     * ( x * y + z * w )
-    R22 = 1 - 2 * ( x * x + z * z )
-    R23 = 2     * ( y * z - x * w )
-
-    R31 = 2     * ( x * z - y * w )
-    R32 = 2     * ( y * z + x * w )
-    R33 = 1 - 2 * ( x * x + y * y )
-
-    return Vec_xyz(
-        R11 * body.x + R12 * body.y + R13 * body.z,
-        R21 * body.x + R22 * body.y + R23 * body.z,
-        R31 * body.x + R32 * body.y + R33 * body.z)
-
-def body_to_earth_Q( body, q ) -> Vec_xyz:
-    """Rotate vector by a quaternion using Quaternion math"""
-    p = Qtrn(w=0, x=body.x, y=body.y, z=body.z)
-    q = q.copy()
-    q_conj = q.conj()
-    q.multiply( p ).multiply( q_conj )
-    return Vec_xyz(x=q.x, y=q.y, z=q.z)
+##    
+##def body_to_earth_M( body, q ) -> Vec_xyz:
+##    """Rotate vector by a quaternion using matrix math"""
+##    x = q.x
+##    y = q.y
+##    z = q.z
+##    w = q.w
+##
+##    R11 = 1 - 2 * ( y * y + z * z )
+##    R12 = 2     * ( x * y - z * w )
+##    R13 = 2     * ( x * z + y * w )
+##
+##    R21 = 2     * ( x * y + z * w )
+##    R22 = 1 - 2 * ( x * x + z * z )
+##    R23 = 2     * ( y * z - x * w )
+##
+##    R31 = 2     * ( x * z - y * w )
+##    R32 = 2     * ( y * z + x * w )
+##    R33 = 1 - 2 * ( x * x + y * y )
+##
+##    return Vec_xyz(
+##        R11 * body.x + R12 * body.y + R13 * body.z,
+##        R21 * body.x + R22 * body.y + R23 * body.z,
+##        R31 * body.x + R32 * body.y + R33 * body.z)
+##
+##def body_to_earth_Q( body, q ) -> Vec_xyz:
+##    """Rotate vector by a quaternion using Quaternion math"""
+##    p = Qtrn(w=0, x=body.x, y=body.y, z=body.z)
+##    q = q.copy()
+##    q_conj = q.conj()
+##    q.multiply( p ).multiply( q_conj )
+##    return Vec_xyz(x=q.x, y=q.y, z=q.z)
  
 ##================================================================================================================= 
 

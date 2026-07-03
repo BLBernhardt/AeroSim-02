@@ -12,7 +12,8 @@ from math import pi, sqrt
 from GSOF_Cockpit.Aerospace import ArtificialHorizon as AH
 from GSOF_Cockpit.Aerospace import TurnCoordinator_Analog as TC
 from GSOF_Cockpit.Aerospace import AltMeter_Analog as ALT
-from GSOF_Cockpit.Aerospace import MachMeter_Analog as MACH
+#from GSOF_Cockpit.Aerospace import MachMeter_Analog as MACH
+from GSOF_Cockpit.Aerospace import GMeter_Analog as G
 from GSOF_Cockpit.Aerospace import AirSpeedMeter_Analog as AS
 from GSOF_Cockpit.Aerospace import VsiMeter_Analog as VSI
 from GSOF_Cockpit.Aerospace import Heading_Analog as HEAD
@@ -73,7 +74,8 @@ class CockpitView():
         self.horizon = AH.ArtificialHorizon( self.screen, pos=horizon_pos, size=horizon_size,
                                              rollToDeg=180/pi, pitchToDeg=180/pi)
         self.alt     = ALT.AltMeter( self.screen, pos=alt_pos, size=alt_size)    
-        self.mach    = MACH.MachMeter( self.screen, pos=mach_pos, size=mach_size )
+        #self.mach    = MACH.MachMeter( self.screen, pos=mach_pos, size=mach_size )
+        self.gm      = G.GMeter_Analog( self.screen, pos=mach_pos, size=mach_size )
         self.minimap = MAP.Map( screen, pos=minimap_pos, size=minimap_size,
                                 kp = 0.9,
                                 bodyImage=imageLoad("%s/skin/Frame_Rect.png" % path),
@@ -111,10 +113,11 @@ class CockpitView():
            speed_knots = 900
 
         heading = pi*ins.azimuth/180
+        pitch   = pi*ins.pitch/180
+        roll    = pi*ins.roll/180
+
         mToFt = 3.28
         alt_ft = mToFt*ins.height
-        pitch = pi*ins.pitch/180
-        roll = pi*ins.roll/180
 
         dt = time -self.time_Z1
         if dt > 0.005:
@@ -136,8 +139,10 @@ class CockpitView():
         rudderCmd = cmds.rudderCmd_d
         wow  = newData.wow
 
+        ### MODEL TO 3D-GRAPHICS
+        ### X-FOWARD, Y-RIGHT, Z-DOWN TO X-RIGHT, Z-UP
         planeState = PlaneState(north=0, east=0, up=alt_ft,
-                                heading_d=heading*180/pi, pitch_d=pitch*180/pi, roll_d=roll*180/pi,
+                                heading_d=-heading*180/pi, pitch_d=pitch*180/pi, roll_d=-roll*180/pi,
                                 throttle=throttle,
                                 gearsDown_b=cmds.gearExtendCmd_b,
                                 wowNose_b=wow.nose,
@@ -146,14 +151,15 @@ class CockpitView():
         worldState = WorldState(translate=(0,-alt_ft, 0))
         self.world.update( time, planeState, worldState)
         
-        self.horizon.update( -roll, pitch )
-        self.turn.update( self.turnRate_rps, sideslip )
+        self.horizon.update( roll, pitch )
+        self.turn.update( -self.turnRate_rps, sideslip )
         mToFt = 3.2808
         self.alt.update( ins.height)#*mToFt )
-        self.mach.update( ins.mach )
-        self.minimap.update(x=ins.east/100, y=-ins.north/100, deg=-ins.azimuth)
-        self.vsi.update(  60*ins.vel_up/1000 )
-        self.head.update( -ins.azimuth, -ins.azimuth )
+        #self.mach.update( ins.mach )
+        self.gm.update( -9.8*(1 +ins.upAcc/32) )
+        self.minimap.update(x=ins.east/100, y=-ins.north/100, deg=ins.azimuth)
+        self.vsi.update( 60*ins.vel_up/1000 )
+        self.head.update( ins.azimuth, ins.azimuth )
         self.airSpd.update( speed_knots )
         self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd*20)
 
@@ -165,7 +171,8 @@ class CockpitView():
         self.horizon.draw()
         self.turn.draw()
         self.alt.draw()
-        self.mach.draw()
+        #self.mach.draw()
+        self.gm.draw()
         self.minimap.draw()
         self.vsi.draw()
         self.head.draw()
@@ -196,15 +203,21 @@ if __name__ == "__main__":
     data = Data(screen_size)
     clock = Clock()
 
+    #mode = "arcade" # False, "navion", "arcade"
     mode = "navion" # False, "navion", "arcade"
 
     help(mode)
+    calcFrame = 5
     while True:
         ###Loop to update gauges
         #T0 = time.time()
-        for i in range(0,4):
-           cockpit.update( data.getData(test=mode) )
-        #print(time.time() -T0)
-        cockpit.draw()
-        update()
-        clock.tick(Fs=20)
+        newData = data.getData(test=mode)
+        calcFrame -= 1
+        if calcFrame == 0:
+            calcFrame = 5
+            cockpit.update(newData)
+            cockpit.draw()
+        else:
+            ##print(time.time() -T0)
+            update()
+            clock.tick(Fs=100)
