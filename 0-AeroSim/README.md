@@ -10,5 +10,7 @@ https://github.com/mrGSOF/GSOF_Cockpit
 - Install Python (tested with 3.11, 3.13.1).
 - run `pip install pygame`
 - run `pip install pymesh`
+- run `pip GSOF_3dWireFrame`
+- run `pip GSOF_Cockpit`
 - Clone submodules and run `pip install .` for each one.
 - run 'py Simulation.py'
