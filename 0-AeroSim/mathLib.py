@@ -1,9 +1,14 @@
 from math import pi, sin, asin, cos, atan2, sqrt
-from typing import Self, TypeVar
-
-Q = TypeVar('Q', bound='Qtrn')
-V_xyz = TypeVar('V_xyz', bound='Vec_xyz')
-V_pqr = TypeVar('V_pqr', bound='Vec_pqr')
+try:
+  from typing import Self, TypeVar
+  Q = TypeVar('Q', bound='Qtrn')
+  V_xyz = TypeVar('V_xyz', bound='Vec_xyz')
+  V_pqr = TypeVar('V_pqr', bound='Vec_pqr')
+except:
+  Self = None
+  Q = None
+  V_xyz = None
+  V_pqr = None
 
 PI = pi
 RADtoDEG = 180/PI

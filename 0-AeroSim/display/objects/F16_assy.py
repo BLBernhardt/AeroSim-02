@@ -31,7 +31,7 @@ class F16(Assembly):
     def __init__(self, folder='./'):
         self.time = 0.0
         axis  = Object(
-           filename="%s/objects/axis.json"%folder, color=GREEN)\
+           filename="%s/objects/Axis.json"%folder, color=GREEN)\
            .scale(50.0)\
            .translate(0, 0, 150)\
            .setOrigin()
