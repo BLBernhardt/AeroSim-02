@@ -103,21 +103,21 @@ class CockpitView():
         Update all the dials. Usually done in a different rate then the actuale display refresh.
         Also each dial can have a behaviour model (e.g: LPF, Min/Max detectors, Moving-Average, Delay...) 
         """
-        ins = newData.ins
+        state = newData.tm.tm
         time = newData.time
         #mpsToKnots = 1.944
         #speed_knots = mpsToKnots*sqrt(
         fpsToKnots = 0.59
-        speed_knots = fpsToKnots*sqrt(ins.vel_north**2 +ins.vel_east**2 +ins.vel_up**2)
+        speed_knots = fpsToKnots*sqrt(state.velNorth_mps**2 +state.velEast_mps**2 +state.velUp_mps**2)
         if speed_knots > 900:
            speed_knots = 900
 
-        heading = pi*ins.azimuth/180
-        pitch   = pi*ins.pitch/180
-        roll    = pi*ins.roll/180
+        heading = state.azimuth_r
+        pitch   = state.pitch_r
+        roll    = state.roll_r
 
         mToFt = 3.28
-        alt_ft = mToFt*ins.height
+        alt_ft = mToFt*state.hae_m
 
         dt = time -self.time_Z1
         if dt > 0.005:
@@ -127,41 +127,41 @@ class CockpitView():
         
         cmds = newData.cmds
         throttle = cmds.throttleCmd
-        accZ = ins.upAcc
-        accX = ins.forwardAcc
-        accY = ins.rightAcc
+        accZ = state.accUp_mps2
+        accX = state.accForward_mps2
+        accY = state.accRight_mps2
         sideslip = accY / (sqrt(accZ**2 +accX**2) +0.01) #< Missing g vector
 
-        lElev = cmds.lElevonCmd_d
-        rElev = cmds.rElevonCmd_d
-        rollCmd =  -20*(lElev -rElev)/2
-        pitchCmd = -10*(lElev +rElev)/2
-        rudderCmd = cmds.rudderCmd_d
-        wow  = newData.wow
+        rollCmd   = state.fcsAileron_deg
+        pitchCmd  = state.fcsElevator_deg
+        rudderCmd = state.fcsRudder_deg
 
         ### MODEL TO 3D-GRAPHICS
         ### X-FOWARD, Y-RIGHT, Z-DOWN TO X-RIGHT, Z-UP
-        planeState = PlaneState(north=0, east=0, up=alt_ft,
-                                heading_d=-heading*180/pi, pitch_d=pitch*180/pi, roll_d=-roll*180/pi,
+        radToDeg = 180/pi
+        north, east, height = (0,0,state.hae_m)#(state.latY_m, state.lonX_m, state.hae_m)
+        planeState = PlaneState(north=north, east=east, up=height,
+                                heading_d=-heading*radToDeg, pitch_d=pitch*radToDeg, roll_d=-roll*radToDeg,
                                 throttle=throttle,
-                                gearsDown_b=cmds.gearExtendCmd_b,
-                                wowNose_b=wow.nose,
-                                wowLeft_b=wow.left,
-                                wowRight_b=wow.right)
-        worldState = WorldState(translate=(0,-alt_ft, 0))
+                                gearsDown_b=cmds.gearsDownCmd,
+                                wowNose_b=state.wowNose,
+                                wowLeft_b=state.wowLeft,
+                                wowRight_b=state.wowRight)
+        worldState = WorldState(translate=(0,-state.hae_m, 0))
         self.world.update( time, planeState, worldState)
         
         self.horizon.update( roll, pitch )
         self.turn.update( -self.turnRate_rps, sideslip )
         mToFt = 3.2808
-        self.alt.update( ins.height)#*mToFt )
-        #self.mach.update( ins.mach )
-        self.gm.update( -9.8*(1 +ins.upAcc/32) )
-        self.minimap.update(x=ins.east/100, y=-ins.north/100, deg=ins.azimuth)
-        self.vsi.update( 60*ins.vel_up/1000 )
-        self.head.update( ins.azimuth, ins.azimuth )
+        azimuth_deg = state.azimuth_r*radToDeg
+        self.alt.update( state.hae_m*mToFt )
+        g = 9.81
+        self.gm.update( -g*(1 +state.accUp_mps2/g) )
+        self.minimap.update(x=east/100, y=-north/100, deg=azimuth_deg)
+        self.vsi.update( 60*state.velUp_mps/1000 )
+        self.head.update( azimuth_deg, azimuth_deg )
         self.airSpd.update( speed_knots )
-        self.stck.update(x=rollCmd, y=pitchCmd, deg=rudderCmd*20)
+        self.stck.update(x=-10*rollCmd, y=-10*pitchCmd, deg=-10*rudderCmd)
 
     def draw(self):
         """Draw all the dials. The update method should be called before to update all gauges"""
@@ -181,7 +181,7 @@ class CockpitView():
 
 if __name__ == "__main__":
     import time
-    from TelemetryRx import Data
+    from ModelWrapper import Model
     def help(mode):
         print("Simulation mode: %s"%mode)
         print("Move mouse to control elevator and ailerons")
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     # Initialise Dials.
     path = './'
     cockpit = CockpitView(screen, colorBG=BG_color, scale=1.0, folder=path)
-    data = Data(screen_size)
+    mdl = Model(screen_size)
     clock = Clock()
 
     #mode = "arcade" # False, "navion", "arcade"
@@ -211,11 +211,11 @@ if __name__ == "__main__":
     while True:
         ###Loop to update gauges
         #T0 = time.time()
-        newData = data.getData(test=mode)
+        newState = mdl.step(test=mode)
         calcFrame -= 1
         if calcFrame == 0:
             calcFrame = 5
-            cockpit.update(newData)
+            cockpit.update(newState)
             cockpit.draw()
         else:
             ##print(time.time() -T0)

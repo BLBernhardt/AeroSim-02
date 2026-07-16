@@ -10,12 +10,12 @@ import NavionAircraftParameters as airMdl
 from Solver_6DOF import Solver_6DOF
 
 class Controls():
-    def __init__(self, Elevator_Cmd, Aileron_Cmd, Rudder_Cmd, Throttle_Cmd, GearExtend_Cmd):
-        self.Elevator_Cmd = Elevator_Cmd
-        self.Aileron_Cmd  = Aileron_Cmd
-        self.Rudder_Cmd   = Rudder_Cmd
-        self.Throttle_Cmd = Throttle_Cmd
-        self.GearExtend_Cmd = int(GearExtend_Cmd)
+    def __init__(self, elevatorCmd, aileronCmd, rudderCmd, throttleCmd, gearsDownCmd):
+        self.elevatorCmd = elevatorCmd
+        self.aileronCmd  = aileronCmd
+        self.rudderCmd   = rudderCmd
+        self.throttleCmd = throttleCmd
+        self.gearsDownCmd = int(gearsDownCmd)
         
 class AeroModel():
     def __init__(self, dt, altInit_m, speed_fps, weight_lbs, units):
@@ -65,19 +65,19 @@ class AeroModel():
         self.time += dt
         
         ##================ Controls ================================================================================================
-        self.elevatorCmd  = -(ctrls.Elevator_Cmd * self.params.ELV_MAX_ANG_D ) #< Pitch stick y axis range -1.0 to 1.0
+        self.elevatorCmd  = -(ctrls.elevatorCmd * self.params.ELV_MAX_ANG_D ) #< Pitch stick y axis range -1.0 to 1.0
         self.elevatorCmd += self.elevatorTrim_deg
         self.elevatorCmd *= DEGtoRAD
 
-        self.aileronCmd  = -(ctrls.Aileron_Cmd * self.params.AIL_MAX_ANG_D )   #< Roll stick x axis range -1.0 to 1.0
+        self.aileronCmd  = -(ctrls.aileronCmd * self.params.AIL_MAX_ANG_D )   #< Roll stick x axis range -1.0 to 1.0
         self.aileronCmd += self.aileronTrim_deg
         self.aileronCmd *= DEGtoRAD
 
-        self.rudderCmd  = -(ctrls.Rudder_Cmd * self.params.RUD_MAX_ANG_D )     #< Roll stick x axis range -1.0 to 1.0
+        self.rudderCmd  = -(ctrls.rudderCmd * self.params.RUD_MAX_ANG_D )     #< Roll stick x axis range -1.0 to 1.0
         self.rudderCmd += self.rudderTrim_deg
         self.rudderCmd *= DEGtoRAD
-        self.gearExtendCmd = max(0, min(1, ctrls.GearExtend_Cmd))
-        self.Thrust = ctrls.Throttle_Cmd * self.params.MAX_THRUST              #< Throttle Command setting [ 0, 1]
+        self.gearsDownCmd = max(0, min(1, ctrls.gearsDownCmd))
+        self.Thrust = ctrls.throttleCmd * self.params.MAX_THRUST              #< Throttle Command setting [ 0, 1]
 
         ##================== Airspeed, Alpha, Beta, Flight Path ======================================================================
         ## Update the airspeed 
@@ -119,7 +119,7 @@ class AeroModel():
         self.T.q  = Cmde*self.elevatorCmd #< Command to pitch moment
         self.T.q += Cmo +Cma*self.alpha_r #< Wing pitch moment (baseline and angle of attack)
         self.T.q += Cmq*Wq                #< Rate resistance
-        self.T.q += self.gearExtendCmd*Gmo
+        self.T.q += self.gearsDownCmd*Gmo
         self.T.q *= qSc                   #< Factor due to air speed 
         
         ## Z axis 
