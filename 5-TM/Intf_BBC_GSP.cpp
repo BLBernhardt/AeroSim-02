@@ -1,19 +1,67 @@
 
+
 //=================================================================================================================
 // Intf_BBC_GSP.cpp
 //=================================================================================================================
-
+#include <math.h>
  
 #include "../structures.h"
 #include "../CONFIG.h"
+#include "../7-MATH/Math.h"
  
 void ms_to_hmsms(unsigned long total_ms,unsigned int *hours,unsigned int *minutes,unsigned int *seconds,unsigned int *milliseconds );
+void latlon_to_km(double dlat, double dlon, double lat, double *dx_km, double *dy_km);
+
+
 
 void Intf_BBC_GSP( TM_Param_t* TM_Disp, GSP_UDP_t*  GSP, Cntrls_t* CTRL  )
 {
 
-    unsigned int h, m, s, ms;
+   	static unsigned int h, m, s, ms, frame_cnt;
     float Vel_NS,  Vel_EW;
+ 	static float time_last;
+ 	static double  last_lat,  last_lon, d_lat, d_lon, dx_km, dy_km;
+
+				d_lat = last_lat - GSP->latY_m;
+				d_lon = last_lon - GSP->lonX_m;
+				
+	latlon_to_km( d_lat, d_lon, GSP->latY_m, &dx_km, &dy_km );
+
+		TM_Disp->Position_X += dy_km;				
+		TM_Disp->Position_Y += dx_km; 		
+
+		 			Vel_NS	= GSP->velNorth_mps;   		 
+					Vel_EW	= GSP->velEast_mps;      	
+		TM_Disp->AirSpeed 	= sqrt( Vel_NS*Vel_NS + Vel_EW*Vel_EW );
+
+		TM_Disp->Roll 		= GSP->roll_r * RADtoDEG;              
+		TM_Disp->Pitch		= GSP->pitch_r * RADtoDEG;         
+		TM_Disp->Yaw 		= GSP->heading_r * RADtoDEG;           
+
+		TM_Disp->Alt 		= GSP->hae_m; 					
+		TM_Disp->Climb		= -GSP->velDown_mps;		
+ 	
+ 		TM_Disp->dt			= GSP->timeTag_ms - time_last;
+  			time_last		= GSP->timeTag_ms;		
+ 		
+ 		TM_Disp->frame_cnt	= frame_cnt++;	
+		
+ 		ms_to_hmsms( GSP->timeTag_ms, &h, &m, &s, &ms );
+ 		TM_Disp->hours		= h;
+ 		TM_Disp->min		= m;
+ 		TM_Disp->sec		= s;
+ 		TM_Disp->mSec		= ms;
+ 			time_last		= GSP->timeTag_ms;
+ 	
+ 		TM_Disp->Alpha 		= GSP->aoa_deg;
+		TM_Disp->Beta		= GSP->beta_deg;
+ 	
+		TM_Disp->key		= CTRL->key;
+		
+		TM_Disp->G			= GSP->accDown_mps2/9.80;	
+
+
+ 
 #if 0
  		TM_Disp->Alpha 		=  2.3;
  		TM_Disp->Beta 		=  0.5;
@@ -34,35 +82,6 @@ void Intf_BBC_GSP( TM_Param_t* TM_Disp, GSP_UDP_t*  GSP, Cntrls_t* CTRL  )
  		TM_Disp->spinner[4] 	=  2;
 
 #endif
-
-		TM_Disp->Position_X = GSP->latY_m;				
-		TM_Disp->Position_Y = GSP->lonX_m; 				
-
-		 			Vel_NS	= GSP->velNorth_mps;   		 
-					Vel_EW	= GSP->velEast_mps;      	
-		TM_Disp->AirSpeed 	= sqrt( Vel_NS*Vel_NS + Vel_EW*Vel_EW );
-
-		TM_Disp->Roll 		= GSP->roll_r;              
-		TM_Disp->Pitch		= GSP->pitch_r;             
-		TM_Disp->Yaw 		= GSP->heading_r;           
-
-		TM_Disp->Alt 		= GSP->hae_m; 					
-		TM_Disp->Climb		= -GSP->velDown_mps;		
- 	
- 		TM_Disp->dt			= 0.02;
- 		TM_Disp->frame_cnt	= 12345;	
- 			
- 		ms_to_hmsms( GSP->timeTag_ms, &h, &m, &s, &ms );
- 		TM_Disp->hours		= h;
- 		TM_Disp->min		= m;
- 		TM_Disp->sec		= s;
- 		TM_Disp->mSec		= ms;
- 	
- 		TM_Disp->Alpha 		= GSP->aoa_deg;
-		TM_Disp->Beta		= GSP->beta_deg;
- 	
-		TM_Disp->key		= CTRL->key;
-
 
 
 #if 0
@@ -122,6 +141,57 @@ void ms_to_hmsms(unsigned long total_ms,unsigned int *hours,unsigned int *minute
 
     *hours = (unsigned int)total_ms;
 }
+
+/**
+ * Convert latitude/longitude differences (in degrees) to kilometres.
+ *
+ * dlat   Difference in latitude  (deg)
+ * dlon   Difference in longitude (deg)
+ * lat    Reference latitude      (deg)
+ * dx_km  Output: east-west distance   (km)
+ * dy_km  Output: north-south distance (km)
+ *
+ * Uses the common spherical approximation:
+ *   1° latitude  ≈ 111.32 km
+ *   1° longitude ≈ 111.32 * cos(lat) km
+ */
+void latlon_to_km(double dlat, double dlon, double lat, double *dx_km, double *dy_km)
+{
+    const double KM_PER_DEG = 111.32;
+    const double DEG2RAD    = M_PI / 180.0;
+
+    *dy_km = dlat * KM_PER_DEG;
+    *dx_km = dlon * KM_PER_DEG * cos(lat * DEG2RAD);
+}
+
+
+#if 0
+#include <stdio.h>
+int main(void)
+{
+    double dx, dy;
+
+    /* Difference of 0.05° at 34.0° latitude */
+    latlon_to_km(0.05, 0.05, 34.0, &dx, &dy);
+
+    printf("North-South : %.3f km\n", dy);
+    printf("East-West   : %.3f km\n", dx);
+
+    return 0;
+}
+
+#endif
+
+
+
+
+
+
+
+
+
+
+
 //===============================================================================
 // EOF
 
