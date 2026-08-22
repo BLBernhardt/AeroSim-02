@@ -1,0 +1,28 @@
+main.cpp:			CTRL->Elevator_Cmd = TM_Ctx.pitch_cmd;
+main.cpp:			CTRL->Aileron_Cmd  = TM_Ctx.roll_cmd;
+main.cpp:			CTRL->Rudder_Cmd   = TM_Ctx.yaw_cmd;
+main.cpp:			CTRL->Throttle_Cmd = TM_Ctx.thrtl_cmd;
+main.cpp:        	if (!Update_Graphics( windows, &TM_Stx, &DSPL, CTRL )) CTRL->terminate = 1;    // all windows closed → exit
+main.cpp:    CTRL->MouseX = x - CTRL->MouseStartX;
+main.cpp:    CTRL->MouseY = y - CTRL->MouseStartY;
+main.cpp:    if (CTRL->Stick_E )
+main.cpp:        CTRL->Stick_R = (float)CTRL->MouseX;
+main.cpp:        CTRL->Stick_P = (float)CTRL->MouseY;
+main.cpp:        CTRL->Stick_Y = (float)CTRL->MouseZ;
+main.cpp:        //printf(">>>> %d      %d       %d       %d \n", CTRL->Stick_R,   CTRL->Stick_P,  CTRL->Stick_Y,  CTRL->Stick_E  );
+main.cpp:        CTRL->MouseStartX = x;
+main.cpp:        CTRL->MouseStartY = y;
+main.cpp:        CTRL->MouseZ = 0;
+main.cpp:        CTRL->Button_Down = 1;
+main.cpp:        CTRL->MouseX = x - CTRL->MouseStartX;
+main.cpp:        CTRL->MouseY = y - CTRL->MouseStartY;
+main.cpp:        CTRL->Stick_E = !CTRL->Stick_E;
+main.cpp:        // printf(">>>> %d \n",  CTRL->Stick_Enable );
+main.cpp:        CTRL->MouseZ = 0;
+main.cpp:        CTRL->Stick_Y = (float)CTRL->MouseZ;
+main.cpp:        CTRL->MouseZ += 1;
+main.cpp:        if (CTRL->MouseZ > 100)
+main.cpp:            CTRL->MouseZ = 100;
+main.cpp:        CTRL->MouseZ -= 1;
+main.cpp:        if (CTRL->MouseZ < -100)
+main.cpp:            CTRL->MouseZ = -100;

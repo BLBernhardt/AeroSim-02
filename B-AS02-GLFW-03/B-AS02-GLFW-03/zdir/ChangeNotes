@@ -1,0 +1,47 @@
+
+
+TM_Print
+	Server_Tx_tT    ->  M_Param_t
+	G_Meter				Spinner[0]
+	
+	
+	
+TM_Load
+		Server_Tx_tT    ->  M_Param_t
+	
+		//	if( CTRL->IPC_conf == BBC && ( CTRL->Mode == S_SIM || CTRL->Mode == FULL )
+	//	{
+	
+		TM_Stx->Position_X 	= AERO_D->Position_inertial_X_ft;
+		TM_Stx->Position_Y 	= AERO_D->Position_inertial_Y_ft;
+		TM_Stx->G_meter		= AERO_D->G_meter;
+	
+	
+PFD_Exec
+		Server_Tx_tT    ->  M_Param_t		
+		
+		
+		
+PFD_Attitude
+		Server_Tx_tT    ->  M_Param_t
+		
+		
+		
+HSI_Map
+		Server_Tx_tT    ->  M_Param_t		
+		
+	 	//	inertial_pos[0].x = TM->Position_X/100.0;
+ 		//	inertial_pos[0].y = -TM->Position_Y/100.0;			
+			
+	
+Main_Graphics
+		Server_Tx_tT    ->  M_Param_t			
+	
+main
+		Server_Tx_tT    ->  M_Param_t	
+		
+			IPC_UDP_C_Tx_init( &tx_sockfd, &tx_addr, SERVER_TX_PORT, DEFAULT_SERVER_IP );
+	IPC_UDP_C_Rx_init( &rx_sockfd, &rx_addr, CLIENT_TX_PORT, DEFAULT_SERVER_IP );
+	
+		IPC_UDP_C_Tx_init( &tx_sockfd, &tx_addr, CLIENT_TX_PORT, DEFAULT_SERVER_IP );
+	IPC_UDP_C_Rx_init( &rx_sockfd, &rx_addr, SERVER_TX_PORT, DEFAULT_SERVER_IP );

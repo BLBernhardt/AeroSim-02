@@ -1,0 +1,86 @@
+
+// structures.h
+#ifndef STRUCTURES_H
+#define STRUCTURES_H
+
+
+void	structures_init(void);
+
+
+struct _UDP
+{
+ int Server_Port;
+};
+
+//struct
+//{
+//  int PFD_Display_Orientation;
+//}
+//Displays;
+
+struct _Cntrls
+{
+  int 	Stick_X;
+  int 	Stick_Y;
+  int 	Stick_Z;  
+  
+  float x_cmd;
+  float y_cmd;
+  float z_cmd;
+    
+  int 	Cursor_has_Stick;
+  int 	Button_Down;
+  
+  int 	MouseStartY;
+  int 	MouseStartX;
+  
+  int 	MouseX;  
+  int 	MouseY;
+  int   MouseZ;
+  
+  int 	Stick_Enable;
+
+  int	Pitch_impulse;
+  float Pitch_Cmd;
+  float angle_alpha;
+  int	abort;
+  int   key;
+  
+  float Throttle_Cmd; // throttle 				[  0, +1 ].
+  float Elevator_Cmd; // elevator deflection 	[ -1, +1 ].
+  float Aileron_Cmd;  // aileron deflection 	[ -1, +1 ].
+  float Rudder_Cmd;   // Grudder deflection 	[ -1, +1 ].
+};
+
+
+//====================================================================================================
+// structures_init.c
+
+include "strustures.h"
+
+
+
+struct _Cntrls   Cntrls;
+struct _Aerodyn  Aero;
+struct _Frame    Frame;
+struct _Display  Display;
+struct _Discrete Disc;
+struct _TEST     test;
+
+
+//=================================================================================================
+// main.c
+
+#include "structures.h"
+
+int main( int argc, char ** argv ) 
+{
+
+
+
+	structures_init();
+
+
+
+
+

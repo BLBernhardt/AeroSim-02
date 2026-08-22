@@ -1,0 +1,47 @@
+
+
+4-IPC/Server_TxRx.c: In function ‘size_t Prepare_UDP_Msg(const UDP_S_Tx_Packet_t*, uint8_t*, size_t)’:
+4-IPC/Server_TxRx.c:102:31: warning: converting a packed ‘UDP_S_Tx_Packet_t’ pointer (alignment 1) to a ‘uint32_t’ {aka ‘unsigned int’} pointer (alignment 4) may result in an unaligned pointer value [-Waddress-of-packed-member]
+  102 |     uint32_t* p = (uint32_t*)&pkt;
+      |                               ^~~
+In file included from 4-IPC/Server_TxRx.c:6:
+4-IPC/IPC_UDP_Common.h:39:1: note: defined here
+   39 | {
+      | ^
+g++ -Wall -g   -c -o main.o main.c
+g++ -Wall -g -o a 7-MATH/Vector.o 7-MATH/Matrix.o 7-MATH/Quaternion.o 5-TM/TM_Print.o 3-AeroSim/flightmodel-810-03.o 2-MODEL/aero_model.o 2-MODEL/coeff_table.o 4-IPC/Server_TxRx.o main.o -lglut -lGLU -lGL -lm
+(venv) vlad@Linux-01:~/AeroSims/2-AeroSim-Sim$ 
+
+
+//=======================================================
+//IPC/IPC_UDP_Common.h
+
+// ===================================================================
+// Data Structure - 22 floats = 88 bytes
+// ===================================================================
+typedef struct __attribute__((packed)) 
+{  // line 39
+    unsigned int timeTag_ms;
+    float latY_m;
+    float lonX_m;
+    float hae_m;
+    float velNorth_mps;
+    float velEast_mps;
+    float velDown_mps;
+    float accForward_mps2;
+    float accRight_mps2;
+    float accDown_mps2;
+    float roll_r;
+    float pitch_r;
+    float heading_r;
+    float roll_rps;
+    float pitch_rps;
+    float yaw_rps;
+    float fcsAileron_deg;
+    float fcsElevator_deg;
+    float fcsRudder_deg;
+    float fcsFlaps_deg;
+    float fcsSpeedbrakes_deg;
+    float throttleFbk;
+} UDP_S_Tx_Packet_t;
+

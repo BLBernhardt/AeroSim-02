@@ -1,0 +1,28 @@
+
+using linux and C++
+
+
+//==========================
+Math_define.h contains
+struct _TEST
+{
+	float  orient_x;
+	float  orient_y;
+	float  orient_z;
+};
+//==========================
+main.cpp contains
+
+#include "Math_define.h"
+struct _TEST test;
+//==========================
+flightmodel.cpp contains
+#include "Math_define.h"
+extern struct _TEST test;
+//==========================
+Error Generated
+
+home/brian/EDL-SIM/flightmodel-001-B.cpp:148:(.text+0xbea): undefined reference to `test'
+/usr/bin/ld: /home/brian/EDL-SIM/flightmodel-001-B.cpp:149:(.text+0xbfa): undefined reference to `test'
+/usr/bin/ld: /home/brian/EDL-SIM/flightmodel-001-B.cpp:150:(.text+0xc0a): undefined reference to `test'
+

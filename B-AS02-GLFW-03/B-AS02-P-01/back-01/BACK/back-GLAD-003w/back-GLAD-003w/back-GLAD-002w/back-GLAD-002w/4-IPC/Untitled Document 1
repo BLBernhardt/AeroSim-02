@@ -1,0 +1,108 @@
+
+
+
+//===============================================================================
+// IPC Client Tx Init
+//===============================================================================
+void IPC_UDP_C_Tx_init(int *sockfd, struct sockaddr_in *addr, int port, const char *ip)
+{
+    *sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (*sockfd < 0) {
+        perror("Tx socket creation failed");
+        exit(1);
+    }
+
+    memset(addr, 0, sizeof(*addr));
+    addr->sin_family = AF_INET;
+    addr->sin_port   = htons(port);
+    addr->sin_addr.s_addr = inet_addr(ip);
+
+    printf("Tx ready to send to %s:%d\n", ip, port);
+}
+
+//===============================================================================
+// Pack UDP Message (host → network byte order)
+//===============================================================================
+void Pack_UDP_Msg(const TM_Param_t* src, uint8_t* buffer, size_t* out_len)
+{
+    if (src == NULL || buffer == NULL || out_len == NULL) {
+        fprintf(stderr, "Pack_UDP_Msg: Invalid input\n");
+        *out_len = 0;
+        return;
+    }
+
+    // Copy structure
+    memcpy(buffer, src, sizeof(TM_Param_t));
+
+    // Convert host → network byte order (32-bit words)
+    uint32_t* p = (uint32_t*)buffer;
+    size_t num_words = sizeof(TM_Param_t) / 4;
+    for (size_t i = 0; i < num_words; ++i) {
+        p[i] = htonl(p[i]);
+    }
+
+    *out_len = sizeof(TM_Param_t);
+}
+
+//===============================================================================
+// IPC Client Tx
+//===============================================================================
+void IPC_UDP_C_Tx(int sockfd, const struct sockaddr_in* dest_addr, const TM_Param_t* param)
+{
+    uint8_t buffer[BUFFER_SIZE] = {0};
+    size_t  len = 0;
+
+    Pack_UDP_Msg(param, buffer, &len);
+
+    if (len == 0) {
+        fprintf(stderr, "IPC_UDP_C_Tx: Nothing to send\n");
+        return;
+    }
+
+    ssize_t sent = sendto(sockfd,
+                          buffer,
+                          len,
+                          0,
+                          (const struct sockaddr*)dest_addr,
+                          sizeof(*dest_addr));
+
+    if (sent < 0) {
+        perror("sendto failed");
+    } else if ((size_t)sent != len) {
+        fprintf(stderr, "sendto: partial send (%zd of %zu bytes)\n", sent, len);
+    }
+    // else success – silent or add debug printf if desired
+} 
+    
+    
+  //=====================================================================================================================
+  
+  
+int tx_sock;
+struct sockaddr_in dest_addr;
+
+IPC_UDP_C_Tx_init(&tx_sock, &dest_addr, 5002, "127.0.0.1");   // or whatever IP/port the server is on
+
+TM_Param_t params = { /* fill your fields */ };
+
+// ... later, whenever you want to send
+IPC_UDP_C_Tx(tx_sock, &dest_addr, &params);  
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+}
+
